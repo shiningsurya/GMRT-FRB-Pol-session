@@ -6,6 +6,12 @@ This pack contains the scripts, test data, and procedure to extract polarization
 
 This pack is exclusively limited to Band~4 (550-750) MHz at this point and will be extended with time.
 
+## Requirements
+
+numpy, pandas, matplotlib, scipy, astropy, astroplan
+
+psrchive, psrchive-python, dspsr
+
 
 ## Contains
 
@@ -32,4 +38,5 @@ refdata reference data contains all the results
 ## caveats
 
 skipping quasar+pulsar calibration solution -- too complicated.
+
 skipping accurate PA measurement -- psrchive bug that does wrong parallactic angle correction when working with not timer archives

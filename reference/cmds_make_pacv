@@ -1,0 +1,2 @@
+scripts/make_pacv_circ.py scratch/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar.pkg.npz --on 150:350 --off 0:100,400:500 -n --delays_grid 0:100:1024
+scripts/make_pacv_circ.py scratch/3C138_bm1_pa_550_200_32_29jan2021.raw.calonoff.ar.T.pkg.npz --off 50:250 --on 325:475 --delays_grid 0:100:1024
