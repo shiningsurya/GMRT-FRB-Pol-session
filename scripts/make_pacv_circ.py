@@ -8,7 +8,6 @@ extension of my_pacv
 - corrects for ionospheric RM contribution in deriving calibration solution.
 - corrects for parallactic angle and position angle of the source
 
-ignore the ionospheric RM contribution
 """
 import os
 import json
@@ -44,10 +43,9 @@ def get_args ():
     add ('--off', help='OFF region in bins (comma-separated, start:stop)', dest='off_region',)
     add ('-O', '--outdir', help='Output directory', default="./", dest='odir')
     add ('-v','--verbose', action='store_true', dest='v')
-    # add ('-a','--par-angle', help='Parallactic angle in degrees', dest='pangle', default=None, type=float)
-    # add ('-i','--ionos-rm', help='Ionospheric RM', dest='ionosrm', default=None, type=float)
     add ('-n','--noise-diode', help='Noise diode', action='store_true', dest='noise_diode')
     add ('--delays_grid', help='Delays grid (min:max:steps)', dest='delays_grid', default="0:600:2048")
+    add ('--ionospheric_rm', help='Ionospheric RM compute using spinifex', dest='ionosrm', default=0.0, type=float)
     return agp.parse_args ()
 
 class BasePacvInfo(object):
@@ -108,7 +106,7 @@ class BasePacvInfo(object):
         ### LST
         self.stt_lst      = self.__get_lst__ (mjd, self.longitude)
 
-    def fill_freq_info(self, nchans, bandwidth, freqs):
+    def fill_freq_info(self, nchans, bandwidth, center_freq, freqs):
         """ uGMRT gives nchans, bandwidth and either flow or fhigh 
             All frequency units in MHz
 
@@ -119,7 +117,7 @@ class BasePacvInfo(object):
         self.nchan        = nchans
         self.chan_bw      = bandwidth / nchans
         self.freqs        = freqs
-        self.fcenter      = self.freqs[nchans//2]
+        self.fcenter      = center_freq
 
     def fill_source_info(self, src_name, rad, decd):
         """ loads src_name, RA/DEC string """
@@ -171,7 +169,7 @@ class BasePacvInfo(object):
         else:
             raise RuntimeError ("Source not identified src=",self.src_name)
 
-    def get_rotation_measure (self, noise_diode=False):
+    def get_rotation_measure (self, ionosrm, noise_diode=False):
         """ 
         Does 3C138 have RM?
 
@@ -188,7 +186,7 @@ class BasePacvInfo(object):
         if noise_diode:
             return 0.0
         elif self.src_name == "3C138":
-            return -2.1
+            return -2.1 + ionosrm
         else:
             raise RuntimeError ("Source not identified src=",self.src_name)
 
@@ -491,6 +489,8 @@ if __name__ == "__main__":
         source      = pkg['src'].item().decode('utf-8')
         nchan       = freqs_mhz.shape[0]
         fbw         = freqs_mhz[1] - freqs_mhz[0]
+        bandwidth   = pkg['bandwidth']
+        fcen        = pkg['center_freq']
     #### freqs
     freqs_ghz   = freqs_mhz * 1E-3 
     wav2        = np.power ( 299.792458 / freqs_mhz, 2.0 )
@@ -528,7 +528,7 @@ if __name__ == "__main__":
     dt        = tobs.strftime ("%Y%m%d")
     #imjd       = int ( mjd )
     pinfo     = BasePacvInfo ( mjd )
-    pinfo.fill_freq_info ( nchan, fbw, freqs_mhz )
+    pinfo.fill_freq_info ( nchan, bandwidth.item(), fcen.item(), freqs_mhz )
     ##
     pinfo.fill_source_info ( source, RAD[source], DECD[source] )
     pinfo.fill_beam_info ( 0. )
@@ -537,7 +537,7 @@ if __name__ == "__main__":
     pal_angle = pinfo.get_parallactic_angle ( tobs, noise_diode = args.noise_diode )
     pos_angle, pal_freq   = pinfo.get_position_angle ( noise_diode = args.noise_diode )
     #### source RM
-    srcrm       = pinfo.get_rotation_measure ( noise_diode = args.noise_diode ) 
+    srcrm       = pinfo.get_rotation_measure ( args.ionosrm, noise_diode = args.noise_diode ) 
     #### correct for both
     angle_corr  = pal_angle + pos_angle
     rm_corr     = srcrm
@@ -545,7 +545,7 @@ if __name__ == "__main__":
     print (f" Parallactic angle = {np.rad2deg(pal_angle):.3f}")
     print (f" Position angle    = {np.rad2deg(pos_angle):.3f}")
     print (f" Correction angle  = {np.rad2deg(angle_corr):.3f}")
-    print (f" Source RM         = {srcrm:.3f}")
+    print (f" Correcting RM     = {srcrm:.3f}")
     pa_corr     = angle_corr + (rm_corr * wav2)
     ##################################################
     ### math

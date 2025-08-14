@@ -72,6 +72,7 @@ if __name__ == "__main__":
     with open (outfile, 'wb') as f:
        np.savez (f, **dict(
            data=data, wts=wts, freqs=freqs,
+           bandwidth=fbw, center_freq=fcen,
            mjd=start_time, src=src, duration=dur,
            basis=basis
        ))
