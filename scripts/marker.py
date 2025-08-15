@@ -60,6 +60,8 @@ def read_ar (f):
     fd      = f[idx].data
     nchan   = fh['NCHAN']
     npol    = fh['NPOL']
+    tbin    = fh['TBIN'] # second
+    fbw     = fh['CHAN_BW'] # MHz
     #### get scales, offsets, weights and data
     scl     = fd['DAT_SCL'].reshape ((1, npol, nchan, 1))
     offs    = fd['DAT_OFFS'].reshape ((1, npol, nchan, 1))
@@ -70,20 +72,20 @@ def read_ar (f):
     dd[...,mask,:] = np.nan
     #### #### coherence products still
     idd     = dd[0,0] + dd[0,1]
-    return dd_process ( idd )
+    return dd_process ( idd ), tbin, fbw
 
 def tester (f):
     """
     dummy test
     """
-    return np.random.randn(512, 1024)
+    return np.random.randn(512, 1024), 327.68E-6, 0.09765625
 
 if __name__ == "__main__":
     ##
     args    = get_args ()
     FAC     = (args.fs, args.ts)
     ##
-    dd      = read_ar ( args.file )
+    dd, tbin_s, fbw_mhz    = read_ar ( args.file )
     # dd      = tester ( args.file )
     nchan, nsamp = dd.shape
     dd      = block_reduce ( dd, FAC, func=np.nanmean )
@@ -107,8 +109,13 @@ if __name__ == "__main__":
 
     fb   = fbx.imshow ( dd, aspect='auto', interpolation='none', cmap='plasma', origin='lower', extent=[0, nsamp, 0, nchan] )
     ppx.step ( times, pp, where='mid', lw=1, color='blue' )
+    ppx.sharex ( fbx )
+
     pp_start = ppx.axvline(0, color='k', lw=3)
     pp_stop  = ppx.axvline(nsamp, color='k', lw=3)
+
+    fbx.set_xlim (-45, nsamp+45)
+    fbx.set_ylim (-45, nchan+45)
 
     saverange = dict(tstart=0, tstop=0, fstart=0, fstop=0)
 
@@ -147,10 +154,16 @@ if __name__ == "__main__":
         fig.canvas.draw_idle()
 
         ############################
+        ## adjust y1, y2
+        y1     = max ( 0, y1 )
+        y2     = min ( nchan, y2 )
         saverange['tstart'] = int ( np.floor ( x1 ) )
         saverange['tstop']  = int ( np.ceil  ( x2 ) )
         saverange['fstart'] = int ( np.floor ( y1 ) )
         saverange['fstop']  = int ( np.ceil  ( y2 ) )
+        ## measured parameters
+        saverange['width_ms'] = 1E3 * tbin_s * abs(x2 - x1)
+        saverange['bw_mhz']   = fbw_mhz * abs(y2 - y1)
         # print ( f" ranges time=({saverange['tstart']:d},{saverange['tstop']:d}) freq=({saverange['fstart']:d},{saverange['fstop']:d})" )
 
     def save_as_json (event):
@@ -165,7 +178,6 @@ if __name__ == "__main__":
         props = dict(facecolor='black', edgecolor='none', alpha=0.35, fill=True)
     )
 
-    ppx.sharex ( fbx )
 
     fbx.set_xlabel ('Time / unit')
     fbx.set_ylabel ('Freq / unit')
