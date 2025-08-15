@@ -1,0 +1,7 @@
+ data/cals/3C138_bm1_pa_550_200_32_29jan2021.raw.calonoff.ar.T
+	Source=3C138 at MJD=59243.595731 parallactic_angle=-79.84 deg
+	Ionospheric RM = 0.379
+	Correction RM = -1.721
+ data/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar
+	Source=R3 at MJD=59894.839417 parallactic_angle=133.44 deg
+	Ionospheric RM = -0.232

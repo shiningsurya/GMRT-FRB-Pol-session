@@ -12,7 +12,13 @@ import astropy.coordinates as asc
 import astropy.units as au
 import astropy.io.fits as aif
 
-from spinifex import get_rm
+try:
+    from spinifex import get_rm
+except ImportError:
+    print (f" SPINIFEX is required to estimate ionospheric RM contribution...")
+    print (f" Please ensure it is accessible.")
+    import sys
+    sys.exit (0)
 
 SPINIFEX_DIR = "/tmp/temp_spinifex"
 ################################################
@@ -22,7 +28,8 @@ gmrt = asc.EarthLocation (
         height=300, 
 )
 
-RMS   = {"0329+54":-64.33, "0139+5814":-94.13, "R3":np.nan}
+RMS   = {"0329+54":-64.33, "0139+5814":-94.13, "3C138":-2.1}
+## see :make_pacv_circ.py: for 3C138 RM literature reference
 
 def get_parallactic_angle ( sc, tobs ):
     """ source coordinates, mjd --> parallactic angle (degree) """

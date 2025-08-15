@@ -53,7 +53,8 @@ if __name__ == "__main__":
     fbw   = ff.get_bandwidth ()
     freqs = fcen + np.linspace (-0.5 * fbw, 0.5 * fbw, nchan, endpoint=True)
     fchan = fbw / nchan
-    freqs += fchan
+    ## center frequency is already centered
+    # freqs += fchan
     tsamp = dur / nbin
     ###
     data  = ff.get_data ()
