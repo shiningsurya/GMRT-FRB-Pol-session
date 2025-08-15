@@ -2,6 +2,7 @@
 reads a psrchive file and saves relevant data into npz file
 """
 import os
+import json
 import pickle as pkl
 
 try:
