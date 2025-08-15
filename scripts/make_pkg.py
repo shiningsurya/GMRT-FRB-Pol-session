@@ -4,7 +4,13 @@ reads a psrchive file and saves relevant data into npz file
 import os
 import pickle as pkl
 
-import psrchive
+try:
+    import psrchive
+except ImportError:
+    print (" psrchive-python is required for this script...")
+    print (" Please ensure it is installed")
+    import sys
+    sys.exit (0)
 
 import numpy as np
 
