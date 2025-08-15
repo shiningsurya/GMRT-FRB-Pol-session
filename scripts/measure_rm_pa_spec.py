@@ -9,15 +9,15 @@ import json
 import numpy as np
 import pandas as pd
 
-from tqdm import tqdm
+# from tqdm import tqdm
 
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as mgs
 import matplotlib.colors as mc
 
-def block_reduce (x, fac, func=np.mean, cval=0.):
-    ''' doesnt do anything with func/cval  ''' 
+def block_reduce (x, fac, func=np.mean):
+    ''' for time/frequency downsampling  ''' 
     xs  = x.shape
     rxs = ()
     mxs = ()
@@ -27,7 +27,8 @@ def block_reduce (x, fac, func=np.mean, cval=0.):
         mxs += (ii,)
         ii  += 2
     # oxs = (int(xs[0]//fac[0]), int(xs[1]//fac[1]))
-    dx  = x.reshape (rxs).mean (mxs)
+    # dx  = x.reshape (rxs).mean (mxs)
+    dx  = func (x.reshape (rxs), axis=mxs)
     return dx
 
 def read_prepare_tscrunch ( 
@@ -49,6 +50,9 @@ def read_prepare_tscrunch (
     Nch     = int ( pkg['nchan'] / fscrunch )
     Nbin    = pkg['nbin']
 
+    freqs     = np.array ( pkg['freqs'] )
+    freq_list = np.array ( pkg['freqs'] )
+
     on_mask = np.zeros ( pkg['nbin'], dtype=bool )
     of_mask = np.ones ( pkg['nbin'], dtype=bool )
     ff_mask = np.zeros ( pkg['nchan'], dtype=bool )
@@ -64,32 +68,37 @@ def read_prepare_tscrunch (
 
     if fscrunch > 1:
         ff_mask     = np.array ( block_reduce ( ff_mask, (fscrunch,), func=np.mean ), dtype=bool )
+        freqs       = np.array ( block_reduce (pkg['freqs'], (fscrunch,), func=np.mean ))
+        freq_list   = np.array ( block_reduce (pkg['freqs'], (fscrunch,), func=np.mean ))
 
     # read data
-    data    = block_reduce (  pkg['data'][0], (1, fscrunch, 1), func=np.mean )
-    wts     = np.ones (pkg['data'].shape, dtype=bool)
-    ww      = np.array (pkg['wts'], dtype=bool)
-    wts[:,:,ww,:] = False
-    ww      = block_reduce (  wts[0] ,  (1, fscrunch, 1), func=np.mean )
+    mata    = np.ma.MaskedArray ( pkg['data'][0], mask=pkg['wts'][0], fill_value=np.nan )
+    # data    = block_reduce (  pkg['data'][0], (1, fscrunch, 1), func=np.mean )
+    # wts     = np.ones (pkg['data'].shape, dtype=bool)
+    # ww      = np.array (pkg['wts'], dtype=bool)
+    # wts[:,:,ww,:] = False
+    # ww      = block_reduce (  wts[0] ,  (1, fscrunch, 1), func=np.mean )
+    mata    = block_reduce ( mata, (1, fscrunch, 1), func=np.mean )
 
     if fscrunch > 1:
         print (" Frequency downsampling by {fs:d}\t {nch0:d} --> {nch1:d}".format (fs=fscrunch, nch0=pkg['nchan'], nch1=Nch))
 
     # mata    = np.ma.array (data, mask=ww, fill_value=np.nan)
-    mata    = data
+    # mata    = data
+    mata    = mata.filled ( np.nan )
+
     nsamp   = mata.shape[2]
-    mask    = ww[0].sum (1) == 0.0
-    zask    = ww[0].sum (1) != 0.0
-    ff_mask = ff_mask & mask
+    # mask    = ww[0].sum (1) == 0.0
+    ff_mask = ff_mask
 
     # axes
-    tsamp   = float (pkg['dur']) / float ( nsamp )
-    times   = np.linspace ( 0., float(pkg['dur']), nsamp )
+    tsamp   = float (pkg['duration']) / float ( nsamp )
+    times   = np.linspace ( 0., float(pkg['duration']), nsamp )
     times   *= 1E3
-    freqs     = np.linspace (-0.5*pkg['fbw'], 0.5*pkg['fbw'], Nch, endpoint=True) + pkg['fcen']
-    freq_list = np.linspace (-0.5*pkg['fbw'], 0.5*pkg['fbw'], Nch, endpoint=True) + pkg['fcen']
+    # freqs     = np.linspace (-0.5*pkg['bandwidth'], 0.5*pkg['fbw'], Nch, endpoint=True) + pkg['fcen']
+    # freq_list = np.linspace (-0.5*pkg['fbw'], 0.5*pkg['fbw'], Nch, endpoint=True) + pkg['fcen']
 
-    times  -= np.median (times[ons])
+    times     -= np.median (times[ons])
     btimes    = times[ons]
 
     freq_lo   = freq_list.min ()
@@ -214,7 +223,9 @@ class RMPABootstrap:
         re_stat      = np.zeros ( n_resamples, dtype=np.float32 )
         pe_stat      = np.zeros ( n_resamples, dtype=np.float32 )
 
-        for i_resample in tqdm ( range(n_resamples), desc='Bootstrap', unit='bt' ):
+        # for i_resample in tqdm ( range(n_resamples), desc='Bootstrap', unit='bt' ):
+        for i_resample in range ( n_resamples ):
+            print (f"   Bootstrap: {i_resample:03d} / {n_resamples:03d} ... ", end='\r')
             __i    = rng.choice ( nsamples, size=ntrial, replace=True, shuffle=False )
             ## slice
             t_w2   = self.w2 [ __i ]
@@ -273,6 +284,36 @@ class PASpec:
         self.w2max    = wave2.max()
         self.mw2      = np.linspace ( self.w2min, self.w2max, mpoints, endpoint=True )
 
+    def rmtf  ( self, rms, peak_rm ):
+        """
+        RM transfer function
+        """
+        nrms = rms.size
+
+        ret  = np.zeros ((nrms,), dtype=np.complex64)
+
+        for irm in range ( nrms ):
+            """
+            one convention needs an additional sign flip later.
+            other convention already incorporates that.
+
+            i am not sure where this sign flip is coming from.
+            """
+            ## one convention
+            # _rm  = rms[irm] - peak_rm
+            ## other
+            _rm  = peak_rm - rms[irm]
+            ret[irm] = np.sum ( np.exp ( 2.0j * (  _rm * self.w2  ) ) )
+        
+        mag  = np.abs ( ret )
+        pa   = 0.5 * np.angle ( ret )
+
+        wpa  = np.unwrap ( pa, period=np.pi )
+
+        slope, _ = np.polyfit ( rms, wpa, 1 )
+
+        return {'rmtf_mag':mag, 'rmtf_pa':pa, 'rmtf_pa_slope':slope}
+
     def rm_spectrum (self, rms):
         """
         rm spectra?
@@ -286,9 +327,10 @@ class PASpec:
             _rm  = rms[irm]
             ret[irm] = np.sum ( np.exp ( 2.0j * ( self.pa - ( _rm * self.w2 ) ) ) )
 
-        return np.abs ( ret )
+        # return np.abs ( ret )
+        return np.abs ( ret ), 0.5 * np.angle ( ret )
 
-    def bootstrap_rmpa (self, rms, n_resamples=999, f_trial=0.85, confidence_level=0.95):
+    def bootstrap_rmpa (self, rms, n_resamples=999, f_trial=0.90, confidence_level=0.95):
         """
         estimate RM error using bootstrap
         """
@@ -366,6 +408,8 @@ def get_args ():
     add ('pkg', help="package file output by make_pkg")
     add ('--rmlow', help='Minimum RM in grid', dest='rmlow', default=-200, type=float)
     add ('--rmhigh', help='Maximum RM in grid', dest='rmhigh',default=-10, type=float)
+    add ('--freqlow', help='Lowest frequency in MHz', dest='flow', default=550, type=float)
+    add ('--freqhigh', help='Highest frequency in MHz', dest='fhigh',default=750, type=float)
     add ('--rmstep', help='Steps in RM grid', dest='rmgrid', default=2048, type=int)
     add ('-v','--verbose', help='Verbose', action='store_true', dest='v')
     add ('-O','--outdir', help='Output directory', default='./', dest='odir')
@@ -408,7 +452,12 @@ if __name__ == "__main__":
 
     ################################
     ### compute magnitude spectrum
-    rmspec    = paspec.rm_spectrum ( rm_grid ) 
+    rmspec, pagridspec  = paspec.rm_spectrum ( rm_grid ) 
+
+    peak_rm   = rm_grid [ np.argmax ( rmspec ) ]
+
+    ### impulse RMTF
+    rmtf      = paspec.rmtf ( rm_grid, peak_rm )
 
     ### fit rm 
     fitrm, rm_boot, pa_boot   = paspec.bootstrap_rmpa ( rm_grid, n_resamples=args.ntrials )
@@ -437,7 +486,13 @@ if __name__ == "__main__":
     RET['paerr']  = paspec.paerr
     RET['res_pa'] = rpa
     RET['rmgrid'] = rm_grid
+    RET['rmspec'] = rmspec
+    RET['paspec'] = pagridspec
+    RET.update ( rmtf )
     CET.update ( fitrm )
+    CET['rmtf_pa_slope'] = rmtf['rmtf_pa_slope']
+    RET['boot_rm'] = rm_boot
+    RET['boot_pa'] = pa_boot
     ###########################################################
     cf   = pd.DataFrame ( CET, index=[0] )
 
@@ -476,7 +531,7 @@ if __name__ == "__main__":
     faxpa= axpa.secondary_xaxis ('top', functions=(to_freq, from_freq))
     faxpa.set_xlabel('Freq / MHz')
 
-    axpa.set_xlim ( from_freq(750.), from_freq(550.) )
+    axpa.set_xlim ( from_freq(args.fhigh), from_freq(args.flow) )
     axpa.set_ylim ( -90., 90. )
     axrs.set_ylim (-30, 30)
 

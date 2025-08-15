@@ -78,9 +78,11 @@ if __name__ == "__main__":
     src          = ff.get_source ()
     ##########################################
     with open (outfile, 'wb') as f:
-       np.savez (f, **dict(
+        pkg  = dict(
            data=data, wts=wts, freqs=freqs,
-           bandwidth=fbw, center_freq=fcen,
+           bandwidth=fbw, center_freq=fcen, nchan=nchan, nbin=nbin,
            mjd=start_time, src=src, duration=dur,
            basis=basis
-       ))
+        )
+        pkg.update ( ran )
+        np.savez (f, **pkg)

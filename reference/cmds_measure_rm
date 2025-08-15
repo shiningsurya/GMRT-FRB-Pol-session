@@ -1,0 +1,6 @@
+scripts/measure_rm_pa_spec.py -O reference/rms -f 4 -v scratch/59243.4823292439_sn121.00_lof750_R3.Pz.pkg.npz
+scripts/measure_rm_pa_spec.py -O reference/rms -f 4 -v scratch/59243.4552563413_sn77.27_lof750_R3.Pz.pkg.npz
+scripts/measure_rm_pa_spec.py -O reference/rms -f 4 -v scratch/59894.7963734623_sn100.87_lof750_R3.Pz.pkg.npz
+scripts/measure_rm_pa_spec.py -O reference/rms -f 4 -v scratch/59894.8480059734_sn49.24_lof750_R3.Pz.pkg.npz
+scripts/measure_rm_pa_spec.py -O reference/rms -f 4 -v scratch/59243.4823292439_sn121.00_lof750_R3.Pz.pkg.npz
+scripts/measure_rm_pa_spec.py -O reference/rms -f 4 -v scratch/59243.5481613923_sn97.90_lof750_R3.Pz.pkg.npz
