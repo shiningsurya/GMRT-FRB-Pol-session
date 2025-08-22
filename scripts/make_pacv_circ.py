@@ -151,11 +151,9 @@ class BasePacvInfo(object):
             
             Perley Butler here
             in band-4, we do not expect pos-angle to change
+            https://ui.adsabs.harvard.edu/abs/2013ApJS..206...16P/abstract
 
            -32 degrees
-
-           This Q/U sign flip
-           There is a sign flip in V
 
            also returns the reference frequency
 
