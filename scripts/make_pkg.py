@@ -23,7 +23,7 @@ def get_args ():
     add ('-j','--json', default=None, help="JSON file containing tstart,tstop,fstart,fstop", dest='json')
     add ('-n','--no-json', action='store_true', help='Make pkg without json', dest='nojson')
     add ('-DD',action='store_true', help='Do not de-disperse', dest='DD')
-    add ('-RR', action='store_true', help='Do not remove baseline', dest='RR')
+    add ('-RR', action='store_true', help='Do not de-baseline', dest='RR')
     add ('file', help="archive file")
     return ag.parse_args ()
 
