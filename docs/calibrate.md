@@ -68,8 +68,8 @@ $> python scripts/vis_pacv.py <pacv-file>
 ```
 
 A typical png file looks like 
-![pacv png](references/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar.pkg.pcal.png)
 
+<img src="references/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar.pkg.pcal.png">
 
 
 Having calibrated bursts, we start the procedure of measuring RMs.
