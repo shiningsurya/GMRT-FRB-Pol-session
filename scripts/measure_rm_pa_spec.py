@@ -2,12 +2,22 @@
 
 
 """
+from __future__ import print_function
 import os
 import sys
 import json
 
 import numpy as np
 import pandas as pd
+
+
+try:
+    import psrchive
+except ImportError:
+    print (" psrchive-python is required for this script...")
+    print (" Please ensure it is installed")
+    import sys
+    sys.exit (0)
 
 # from tqdm import tqdm
 
@@ -31,20 +41,64 @@ def block_reduce (x, fac, func=np.mean):
     dx  = func (x.reshape (rxs), axis=mxs)
     return dx
 
+def read_pkg ( ar_file ):
+    """
+    returns dict 
+    taken from `make_pkg`
+    """
+    ff  = psrchive.Archive_load ( ar_file )
+    ff.convert_state ('Stokes')
+    ff.remove_baseline ()
+    ff.dedisperse ()
+    ###
+    basis = ff.get_basis()
+    nbin  = ff.get_nbin()
+    nchan = ff.get_nchan()
+    dur   = ff.get_first_Integration().get_duration()
+    fcen  = ff.get_centre_frequency ()
+    fbw   = ff.get_bandwidth ()
+    freqs = fcen + np.linspace (-0.5 * fbw, 0.5 * fbw, nchan, endpoint=True)
+    fchan = fbw / nchan
+    ## center frequency is already centered
+    # freqs += fchan
+    tsamp = dur / nbin
+    ###
+    data  = ff.get_data ()
+    #### making data and wts compatible
+    ww = np.array (ff.get_weights ().squeeze(), dtype=bool)
+    wts   = np.ones (data.shape, dtype=bool)
+    wts[:,:,ww,:] = False
+    mata  = np.ma.array (data, mask=wts, fill_value=np.nan)
+    ###
+    start_time   = ff.start_time ().in_days ()
+    end_time     = ff.end_time ().in_days ()
+    mid_time     = 0.5 * ( start_time + end_time )
+    ###
+    src          = ff.get_source ()
+    ##########################################
+    pkg  = dict(
+       data=data, wts=wts, freqs=freqs,
+       bandwidth=fbw, center_freq=fcen, nchan=nchan, nbin=nbin,
+       mjd=start_time, src=src, duration=dur,
+       basis=basis
+    )
+    return pkg
+
 def read_prepare_tscrunch ( 
-        pkg_file,
+        pkg,
+        on_region,
         fscrunch,
         v=False
     ):
     """
-    pkg_file: npz file
+    pkg : dictionary of `read_pkg`
     fscrunch: int 
     v: bool verbose flag
     returns
     freq_list, IQUV, errors(IQUV)
     """
     ##
-    pkg     = np.load ( pkg_file )
+    # pkg     = np.load ( pkg_file )
 
     ## read meta
     Nch     = int ( pkg['nchan'] / fscrunch )
@@ -58,13 +112,13 @@ def read_prepare_tscrunch (
     ff_mask = np.zeros ( pkg['nchan'], dtype=bool )
 
     ## 20230314 : everything that is not ON is OFF
-    ons     = slice ( pkg['tstart'], pkg['tstop'] )
+    ons     = slice ( on_region['tstart'], on_region['tstop'] )
     on_mask[ons]   = True
-    of_mask[pkg['tstart']:pkg['tstop']]   = False
+    of_mask[on_region['tstart']:on_region['tstop']]   = False
 
-    ofs     = slice ( pkg['fstart'], pkg['fstop'] )
+    ofs     = slice ( on_region['fstart'], on_region['fstop'] )
     ff_mask[ofs]   = True
-    wid     = pkg['tstop'] - pkg['tstart']
+    wid     = on_region['tstop'] - on_region['tstart']
 
     if fscrunch > 1:
         ff_mask     = np.array ( block_reduce ( ff_mask, (fscrunch,), func=np.mean ), dtype=bool )
@@ -225,7 +279,7 @@ class RMPABootstrap:
 
         # for i_resample in tqdm ( range(n_resamples), desc='Bootstrap', unit='bt' ):
         for i_resample in range ( n_resamples ):
-            print (f"   Bootstrap: {i_resample:03d} / {n_resamples:03d} ... ", end='\r')
+            print ("   Bootstrap: {i_resample:03d} / {n_resamples:03d} ... ".format(i_resample=i_resample, n_resamples=n_resamples), end='\r')
             __i    = rng.choice ( nsamples, size=ntrial, replace=True, shuffle=False )
             ## slice
             t_w2   = self.w2 [ __i ]
@@ -403,14 +457,17 @@ def get_args ():
     import argparse as agp
     ag   = agp.ArgumentParser ('rm_spec', epilog='Part of GMRT/FRB')
     add  = ag.add_argument
+    add ('ar_file', help="burst archive file")
     add ('-f','--fscrunch', default=4, type=int, help='Frequency downsample', dest='fs')
     add ('-n','--ntrials', default=999, type=int, help='Number of bootstrap trials', dest='ntrials')
-    add ('pkg', help="package file output by make_pkg")
-    add ('--rmlow', help='Minimum RM in grid', dest='rmlow', default=-200, type=float)
-    add ('--rmhigh', help='Maximum RM in grid', dest='rmhigh',default=-10, type=float)
-    add ('--freqlow', help='Lowest frequency in MHz', dest='flow', default=550, type=float)
-    add ('--freqhigh', help='Highest frequency in MHz', dest='fhigh',default=750, type=float)
-    add ('--rmstep', help='Steps in RM grid', dest='rmgrid', default=2048, type=int)
+    add ( '-r', '--rmgrid', help='RM grid (min:max:steps)', default='-200:-10:2048', dest='rmgrid' )
+    add ( '--ton', help='Burst time window in bins (start:stop)', required=True, dest='ton' )
+    add ( '--fon', help='Burst frequency window in bins (start:stop)', required=True, dest='fon' )
+    # add ('--rmlow', help='Minimum RM in grid', dest='rmlow', default=-200, type=float)
+    # add ('--rmhigh', help='Maximum RM in grid', dest='rmhigh',default=-10, type=float)
+    # add ('--rmstep', help='Steps in RM grid', dest='rmgrid', default=2048, type=int)
+    # add ('--freqlow', help='Lowest frequency in MHz', dest='flow', default=550, type=float)
+    # add ('--freqhigh', help='Highest frequency in MHz', dest='fhigh',default=750, type=float)
     add ('-v','--verbose', help='Verbose', action='store_true', dest='v')
     add ('-O','--outdir', help='Output directory', default='./', dest='odir')
     ##
@@ -419,16 +476,39 @@ def get_args ():
 if __name__ == "__main__":
     args    = get_args ()
     ####################################
-    bn      = os.path.basename ( args.pkg )
+    bn      = os.path.basename ( args.ar_file )
     bnf     = split_extension ( bn )
     odir    = args.odir
     ####################################
+    on_region  = dict()
+    try:
+        _tstart, _tstop = args.ton.split(':')
+        _fstart, _fstop = args.fon.split(':')
+        on_region['tstart']    = int ( _tstart )
+        on_region['tstop']     = int ( _tstop )
+        on_region['fstart']    = int ( _fstart )
+        on_region['fstop']     = int ( _fstop )
+    except:
+        raise RuntimeError(" ON region not understood ton={ton} fon={fon}".format(ton=args.ton, fon=args.fon))
+    ####################################
+    try:
+        rmlow, rmhigh, rmsteps = args.rmgrid.split(':')
+        rmlow  = float ( rmlow )
+        rmhigh = float ( rmhigh )
+        rmsteps= int ( rmsteps )
+    except:
+        raise RuntimeError (" RM grid not understood, {rmgrid}".format(rmgrid=args.rmgrid))
     if args.v:
-        print (f" RM Grid = {args.rmlow:.3f} ... {args.rmhigh:.3f} with {args.rmgrid:d} steps")
-    rm_grid   = np.linspace ( args.rmlow, args.rmhigh, args.rmgrid , endpoint=True )
+        print (" RM Grid = {rmlow:.3f} ... {rmhigh:.3f} with {rmsteps:d} steps".format(rmlow=rmlow, rmhigh=rmhigh, rmsteps=rmsteps))
+    rm_grid   = np.linspace ( rmlow, rmhigh, rmsteps, endpoint=True )
+    ####################################
+    pkg       = read_pkg ( args.ar_file )
+    data_freq_low    = np.min ( pkg['freqs'] )
+    data_freq_high   = np.max ( pkg['freqs'] )
     ####################################
     freq_list, I, Q, U, V, I_err, Q_err, U_err, V_err = read_prepare_tscrunch (
-        args.pkg,
+        pkg,
+        on_region,
         args.fs,
         args.v
     )
@@ -474,7 +554,12 @@ if __name__ == "__main__":
     ### compute reduced CHI2
     rchi2     = paspec.chi2_reduced ( fitrm['rm'], fitrm['pa'])
 
-    ut    = f"RM-ML={fitrm['rm']:.3f}+-{fitrm['rm_se']:.3f}\nPA0={np.rad2deg(fitrm['pa']):.3f}+-{np.rad2deg(fitrm['pa_se']):.3f}\nrCHI2={rchi2:.3f}"
+    # ut    = f"RM-ML={fitrm['rm']:.3f}+-{fitrm['rm_se']:.3f}\nPA0={np.rad2deg(fitrm['pa']):.3f}+-{np.rad2deg(fitrm['pa_se']):.3f}\nrCHI2={rchi2:.3f}"
+    ut    = "RM-ML={rm:.3f}+-{rmse:.3f}\nPA0={pa:.3f}+-{pase:.3f}\nrCHI2={rchi2:.3f}".format ( 
+        rm = fitrm['rm'], rmse = fitrm['rm_se'],
+        pa = np.rad2deg(fitrm['pa']), pase = np.rad2deg(fitrm['pa_se']),
+        rchi2 = rchi2
+    )
 
     if args.v:
         print ( ut )
@@ -531,7 +616,7 @@ if __name__ == "__main__":
     faxpa= axpa.secondary_xaxis ('top', functions=(to_freq, from_freq))
     faxpa.set_xlabel('Freq / MHz')
 
-    axpa.set_xlim ( from_freq(args.fhigh), from_freq(args.flow) )
+    axpa.set_xlim ( from_freq(data_freq_high), from_freq(data_freq_low) )
     axpa.set_ylim ( -90., 90. )
     axrs.set_ylim (-30, 30)
 
@@ -540,8 +625,10 @@ if __name__ == "__main__":
     axph.hist ( np.rad2deg(pa_boot), bins='auto', density=True, color='blue' )
     axph.axvline ( np.rad2deg(fitrm['pa_mean']), ls=':', c='k', alpha=0.75 )
 
-    axrh.set_xlabel (f"RM = {fitrm['rm_mean']:.3f}")
-    axph.set_xlabel (f"PA = {np.rad2deg(fitrm['pa_mean']):.3f}")
+    # axrh.set_xlabel (f"RM = {fitrm['rm_mean']:.3f}")
+    # axph.set_xlabel (f"PA = {np.rad2deg(fitrm['pa_mean']):.3f}")
+    axrh.set_xlabel ("RM = {rm:.3f}".format(rm=fitrm['rm_mean']))
+    axph.set_xlabel ("PA = {pa:.3f}".format(pa=np.rad2deg(fitrm['pa_mean'])))
 
     for _ax in [axgg, axph, axrh]:
         _ax.xaxis.tick_top ()
@@ -554,5 +641,6 @@ if __name__ == "__main__":
     fig.savefig ( os.path.join ( args.odir, bn + ".png" ), dpi=300, bbox_inches='tight' )
     cf.to_csv ( os.path.join ( args.odir, bn + "_spec.csv" ), index=False )
     np.savez ( os.path.join ( args.odir, bn + "_spec.npz"), **RET)
+
 
 

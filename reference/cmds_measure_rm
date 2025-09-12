@@ -1,6 +1,8 @@
-scripts/measure_rm_pa_spec.py -O reference/rms -f 4 -v reference/pkgs/59243.4823292439_sn121.00_lof750_R3.Pz.pkg.npz
-scripts/measure_rm_pa_spec.py -O reference/rms -f 4 -v reference/pkgs/59243.4552563413_sn77.27_lof750_R3.Pz.pkg.npz
-scripts/measure_rm_pa_spec.py -O reference/rms -f 4 -v reference/pkgs/59894.7963734623_sn100.87_lof750_R3.Pz.pkg.npz
-scripts/measure_rm_pa_spec.py -O reference/rms -f 4 -v reference/pkgs/59894.8480059734_sn49.24_lof750_R3.Pz.pkg.npz
-scripts/measure_rm_pa_spec.py -O reference/rms -f 4 -v reference/pkgs/59243.4823292439_sn121.00_lof750_R3.Pz.pkg.npz
-scripts/measure_rm_pa_spec.py -O reference/rms -f 4 -v reference/pkgs/59243.5481613923_sn97.90_lof750_R3.Pz.pkg.npz
+
+BT=9
+RMGRID="-160:-30:2048"
+python scripts/measure_rm_pa_spec_all.py -f 4 -n $BT -r=$RMGRID -O scratch --ton 246:266 --fon 48:2048 scratch/59894.7963734623_sn100.87_lof750_R3.calibP
+python scripts/measure_rm_pa_spec_all.py -f 4 -n $BT -r=$RMGRID -O scratch --ton 245:267 --fon 118:2042 scratch/59894.8480059734_sn49.24_lof750_R3.calibP
+python scripts/measure_rm_pa_spec_all.py -f 4 -n $BT -r=$RMGRID -O scratch --ton 498:523 --fon 192:2048 scratch/59243.4552563413_sn77.27_lof750_R3.calibP
+python scripts/measure_rm_pa_spec_all.py -f 4 -n $BT -r=$RMGRID -O scratch --ton 489:526 --fon 92:2048 scratch/59243.4823292439_sn121.00_lof750_R3.calibP
+python scripts/measure_rm_pa_spec_all.py -f 4 -n $BT -r=$RMGRID -O scratch --ton 481:544 --fon 61:2048 scratch/59243.5481613923_sn97.90_lof750_R3.calibP
