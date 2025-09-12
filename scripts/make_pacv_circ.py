@@ -22,6 +22,14 @@ import astropy.coordinates as asc
 
 from astropy.io import fits
 
+try:
+    import psrchive
+except ImportError:
+    print (" psrchive-python is required for this script...")
+    print (" Please ensure it is installed")
+    import sys
+    sys.exit (0)
+
 ################################
 RAD,DECD         = dict(),dict()
 RAD['3C138']     = 79.5687917
@@ -33,11 +41,54 @@ DECD['3C48']     = 33.1597417
 
 C                = 299792458.0 # m/s
 
+def read_pkg ( ar_file ):
+    """
+    returns dict 
+    taken from `make_pkg`
+    """
+    ff  = psrchive.Archive_load ( ar_file )
+    ff.convert_state ('Stokes')
+    ff.remove_baseline ()
+    ff.dedisperse ()
+    ###
+    basis = ff.get_basis()
+    nbin  = ff.get_nbin()
+    nchan = ff.get_nchan()
+    dur   = ff.get_first_Integration().get_duration()
+    fcen  = ff.get_centre_frequency ()
+    fbw   = ff.get_bandwidth ()
+    freqs = fcen + np.linspace (-0.5 * fbw, 0.5 * fbw, nchan, endpoint=True)
+    fchan = fbw / nchan
+    ## center frequency is already centered
+    # freqs += fchan
+    tsamp = dur / nbin
+    ###
+    data  = ff.get_data ()
+    #### making data and wts compatible
+    ww = np.array (ff.get_weights ().squeeze(), dtype=bool)
+    wts   = np.ones (data.shape, dtype=bool)
+    wts[:,:,ww,:] = False
+    mata  = np.ma.array (data, mask=wts, fill_value=np.nan)
+    ###
+    start_time   = ff.start_time ().in_days ()
+    end_time     = ff.end_time ().in_days ()
+    mid_time     = 0.5 * ( start_time + end_time )
+    ###
+    src          = ff.get_source ()
+    ##########################################
+    pkg  = dict(
+       data=data, wts=wts, freqs=freqs,
+       bandwidth=fbw, center_freq=fcen, nchan=nchan, nbin=nbin,
+       mjd=start_time, src=src, duration=dur,
+       basis=basis
+    )
+    return pkg
+
 def get_args ():
     import argparse
     agp = argparse.ArgumentParser ("make_pacv_circ", description="Makes a pacv calibration solution in circular basis", epilog="GMRT-FRB polarization pipeline")
     add = agp.add_argument
-    add ('npz_file', help='npz file (output of make_pkg.py)',)
+    add ('ar_file', help="calibrator archive file")
     add ('-z','--zap', help='Zap the channels (comma-separated, start:stop)', dest='zap', default='')
     add ('--on', help='ON region in bins (comma-separated, start:stop)', dest='on_region',)
     add ('--off', help='OFF region in bins (comma-separated, start:stop)', dest='off_region',)
@@ -470,8 +521,8 @@ if __name__ == "__main__":
     ###################################################
     ### prepare files/filenames
     ###################################################
-    FILE_PKG    = args.npz_file
-    base,_      = os.path.splitext ( os.path.basename ( FILE_PKG ) )
+    AR_FILE     = args.ar_file
+    base,_      = os.path.splitext ( os.path.basename ( AR_FILE ) )
     pfile       = os.path.join ( args.odir, base + ".pcal.png" )
     ofile       = base + ".pcal.pacv"
     outfile   = os.path.join ( args.odir, ofile  )
@@ -479,16 +530,15 @@ if __name__ == "__main__":
     ### read calibrator file
     ###################################################
     ## read
-    with open ( FILE_PKG, 'rb' ) as __f:
-        pkg         = np.load ( __f )
-        freqs_mhz   = pkg['freqs']
-        mata        = np.ma.MaskedArray ( pkg['data'], mask=pkg['wts'] )[0]
-        mjd         = pkg['mjd']
-        source      = pkg['src'].item().decode('utf-8')
-        nchan       = freqs_mhz.shape[0]
-        fbw         = freqs_mhz[1] - freqs_mhz[0]
-        bandwidth   = pkg['bandwidth']
-        fcen        = pkg['center_freq']
+    pkg         = read_pkg ( AR_FILE )
+    freqs_mhz   = pkg['freqs']
+    mata        = np.ma.MaskedArray ( pkg['data'], mask=pkg['wts'] )[0]
+    mjd         = pkg['mjd']
+    source      = pkg['src']
+    nchan       = freqs_mhz.shape[0]
+    fbw         = freqs_mhz[1] - freqs_mhz[0]
+    bandwidth   = pkg['bandwidth']
+    fcen        = pkg['center_freq']
     #### freqs
     freqs_ghz   = freqs_mhz * 1E-3 
     wav2        = np.power ( 299.792458 / freqs_mhz, 2.0 )
@@ -526,7 +576,7 @@ if __name__ == "__main__":
     dt        = tobs.strftime ("%Y%m%d")
     #imjd       = int ( mjd )
     pinfo     = BasePacvInfo ( mjd )
-    pinfo.fill_freq_info ( nchan, bandwidth.item(), fcen.item(), freqs_mhz )
+    pinfo.fill_freq_info ( nchan, bandwidth, fcen, freqs_mhz )
     ##
     pinfo.fill_source_info ( source, RAD[source], DECD[source] )
     pinfo.fill_beam_info ( 0. )
