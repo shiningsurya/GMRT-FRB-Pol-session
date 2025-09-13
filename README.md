@@ -83,7 +83,7 @@ So, in order to measure accurate PAs using `psrchive`, one must keep the format 
 | `pac`  | This is a `psrchive` command which is used to polarization calibrate archives. |
 | `pazi`  | This is a `psrchive` command which is used to interactively zap frequency channels with RFI. |
 | `pam`  | This is a `psrchive` command which can do all the need Archive Manipulations. We use it to do Faraday Rotation correction. |
+| `psrplot` | This `psrchive` command plots and helps visualize archives. |
 | `make_pacv_circ.py` | This is a `Python` script to generate a calibration solution from either a polarized quasar or noise diode scan for data in Circular basis. | 
 | `measure_rm_pa_spec.py` | `Python` script to measure RM and PA (at infinite frequency) | 
-| `make_pkg.py` | _might get obsolete soon_  Converts `psrchive-archive` format into `numpy` ready for science format. | 
 

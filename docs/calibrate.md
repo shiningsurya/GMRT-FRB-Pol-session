@@ -12,6 +12,7 @@ This script reads in `psrchive-archive` file and outputs `pacv` file and a `png`
 `pacv` file is the `psrchive` format to store calibration solution.
 We will see the `png` file to examine the calibration solution generation.
 We visualize `pacv` file either using `pacv` or `vis_pacv.py`.
+We apply the calibration solution using `pac`.
 
 
 `make_pacv_circ.py` has the following help:
@@ -66,7 +67,7 @@ We run:
 ```
 python scripts/marker.py data/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar
 ```
-. We see dynamic spectra (in bottom panel) and frequency averaged profile (in top panel).
+We see dynamic spectra (in bottom panel) and frequency averaged profile (in top panel).
 Play around with the Constrast slider bar to see what it does.
 There are tools for zooming-in-out (magnifying glass) and panning (moving around, four-arrows-thing) in the bottom left panel, that you can also use.
 
@@ -116,7 +117,7 @@ We will also have a `png` file which looks like this:
 
 The top-left panel shows the frequency average time profile. The red and the green regions are the OFF and ON regions respectively. 
 The top-right panel shows magnitude (how correct is the trial cross hand delay) against trial cross hand delays (Delays grid). The vertical dotted black line is at the chosen cross hand delay.
-The middle panel shows PHI ($\phi$, in radians) as a function of frequency with data as black points and the linear model with blue line.
+The middle panel shows PHI (in radians) as a function of frequency with data as black points and the linear model with blue line.
 The bottom panel shows difference of data and linear model also as a function of frequency. It is clear that error is of the order of 0.1 rad or around 6 deg.
 
 **Notice how the error has structures in it. It does not seem Gaussian. There seems to be locally correlated. This has implications when we are measuring RM.**
@@ -128,13 +129,17 @@ Polarized quasar is an astronomical source. Therefore, there will be some RM con
 Estimating ionospheric RM contribution is done using `get_ionos_rm.py`, which uses [`spinifex`](https://git.astron.nl/RD/spinifex) package. 
 But in order for the `spinifex` package to run, you would need an account on `cddis.nasa.gov` so that you access ionospheric Earth data which complicates the whole process. So, instead, the ionospheric RM contribution is simply provided here. 
 
-`3C138` is shown to have zero RM ([Table 4 of Perley and Bulter, 2013](https://ui.adsabs.harvard.edu/abs/2013ApJS..206...16P/abstract)). But there is one really old paper which says it has an RM of $-2.1$ rad m$^{-2}$ ([Tabara and Inoue (1980)](https://ui.adsabs.harvard.edu/abs/1980A%26AS...39..379T/abstract)). 
+`3C138` is shown to have zero RM ([Table 4 of Perley and Bulter, 2013](https://ui.adsabs.harvard.edu/abs/2013ApJS..206...16P/abstract)). But there is one really old paper which says it has an RM of -2.1 rad per meter square ([Tabara and Inoue, 1980](https://ui.adsabs.harvard.edu/abs/1980A%26AS...39..379T/abstract)). 
 We are at a bit of low frequency that it affects us, to err on side of caution, we use it. 
 
 | RM cause | RM |
 |----------|----|
 | Ionospheric RM contribution | 0.379 | 
 | Intrinsic RM | -2.1 |
+
+In addition to spurious RM, there is also parallactic angle rotation that happens because of how uGMRT tracks the source.
+Although, it is not strictly required in our case as we have circular basis (**why?**), we nevertheless account for this by computing parallactic angle and compensating for it. We also compensate for the intrinsic position angle of 3C138 ([Perley and Bulter, 2013](https://ui.adsabs.harvard.edu/abs/2013ApJS..206...16P/abstract)).
+This step is done automatically by the `make_pacv_circ.py`.
 
 So, our command to generate calibration solution from `3C138` would look like this:
 ```

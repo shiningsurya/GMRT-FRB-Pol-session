@@ -168,6 +168,10 @@ if __name__ == "__main__":
 
     def save_as_json (event):
         if event.key == 'm' or event.key == 'M':
+            if len(saverange) == 0:
+                print (" No region selected. Exiting ... ")
+                sys.exit (0)
+            print (" Saving JSON file to {outfile}".format(outfile=outfile))
             with open (outfile, "w") as f:
                 json.dump (saverange, f, indent=2)
             sys.exit (0)
