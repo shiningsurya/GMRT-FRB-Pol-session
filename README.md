@@ -1,16 +1,14 @@
 
 Welcome to the hands-on session of the GMRT Polarimetry. In this session, we will polarization calibrate and measure various polarization observables of bursts of repeating Fast Radio Burst 20180916B detected using upgraded Giant Metrewave Radio Telescope (uGMRT) in Band 4 (550 to 750 MHz).
 
-We have five bursts, three detected on MJD 59243 and two on MJD 59894. MJD 59243 bursts are calibrated using a polarized quasar (3C138) and MJD 59894 bursts using a noise diode scan. In either case, the calibration procedure is the same, but as we will see, calibration done using polarized quasar requires some additional inputs.
-
-Post calibration, we will measure the Rotation Measure (RM), Positon Angle (PA), and linear polarization fraction (Lp).
 
 ## Before we get started
 
 ### Tutorial 
 
 This hands-on session assumes a bit of polarization knowledge that is presented in the [google-slides](link-here).
-The presentation is the tutorial and it is expected that you have gone through it before attempting this hands-on exercise.
+The presentation explains the science and it is expected that you have understood it before you attempt this hands-on exercise.
+If at any point the science is not clear, it is recommended to refer back to the slides. 
 
 ### Requirements
 
@@ -20,8 +18,19 @@ The basic scientific python packages:
 - `numpy`, `matplotlib`, `pandas`, `pickle` , `astropy`
 - [`spinifex`](https://git.astron.nl/RD/spinifex) which we only need for calculating Ionospheric RM contribution. So it is not strictly needed for this tutorial.
 
+If your environment does not satisfy the above requirements, and if you have `docker` or `singularity/apptainer`, you can pull `docker` image with
+```
+docker pull shiningsurya/frbdocker
+```
+or you can download `singularity/apptainer` image from [Google-drive-link.](https://drive.google.com/file/d/1ZP03tIV7NQ0aWz-d-1tnXX4fpSCc2joD/view?usp=drive_link)
+
+The whole tutorial has been tested against `singularity/apptainer` image. The same, unfortunately, cannot be tested for `docker` image. Please feel free to raise issue or let me know if you come across any issue.
 
 ### Data
+
+We have five bursts, three detected on MJD 59243 and two on MJD 59894. MJD 59243 bursts are calibrated using a polarized quasar (3C138) and MJD 59894 bursts using a noise diode scan. 
+<!--In either case, the calibration procedure is the same, but as we will see, calibration done using polarized quasar requires some additional inputs.-->
+<!--Post calibration, we will measure the Rotation Measure (RM), Positon Angle (PA), and linear polarization fraction (Lp).-->
 
 All the data required for this hands-on session is provided in `data`.
 It has two calibrator archives:
@@ -37,6 +46,8 @@ data/bursts/59243.5481613923_sn97.90_lof750_R3.ar
 data/bursts/59894.7963734623_sn100.87_lof750_R3.ar
 data/bursts/59894.8480059734_sn49.24_lof750_R3.ar
 ```
+
+MJD 59243 refers to 29 January 2021 and MJD 59894 to 12 November 2022.
 
 ## Let's go ...
 
@@ -57,6 +68,13 @@ This tutorial conveniently skips calibration procedure using an unpolarized quas
 
 We noticed that `pac` when working on `PSRFITS` format archives performs incorrect parallactic angle correction.
 So, in order to measure accurate PAs using `psrchive`, one must keep the format of the bursts in `TIMER` format. 
+
+## GO !!! 
+
+| Chapter | Steps |
+|--------|----|
+| [Calibration](https://github.com/shiningsurya/GMRT-FRB-Pol-session/blob/15b6ad8cefd5ce27719cfc953932a18f4d54a181/docs/calibrate.md) | Measure ON and OFF regions, generation calibration solutions, verifying and visualizing the solutions, and lastly applying the solution. |  
+| [Measurement](https://github.com/shiningsurya/GMRT-FRB-Pol-session/blob/15b6ad8cefd5ce27719cfc953932a18f4d54a181/docs/measure_rm.md) | |
 
 ## Glossary of commands and script
 

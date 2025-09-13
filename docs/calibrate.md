@@ -149,12 +149,15 @@ _if you get stuck, and only if you get stuck, check out_ `reference/cmds_make_pa
 
 ## Verification
 
-Verify that your cross hand delay and bias agree with the following:
+At this point, we will only verify that your cross hand delay and bias measurements agree with my measurements:
 
 | Calibrator archive | Cross hand delay in ns | Bias in radians |
 |--------------------|------|-----|
 |`data/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar` | 36.852 | -1.790 |
 |`data/cals/3C138_bm1_pa_550_200_32_29jan2021.raw.calonoff.ar.T` | 31.574 | 2.756 |
+
+In reality, to verify your calibration solutions, you would need to self calibrate, that is, apply the calibration solution to the same calibrator data from which it is derived and look for anomalies. Or apply the calibration solution on known source (such as a pulsar) and compare with literature measurements.
+All of which is beyond the scope of this tutorial.
 
 
 ## Visualize pacv
@@ -162,12 +165,60 @@ Verify that your cross hand delay and bias agree with the following:
 You can visualize the generated `pacv` files with either `psrchive` command `pacv` or script `vis_pacv.py`.
 
 ```
-pacv -D 1/xw reference/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar.pkg.pcal.pacv
+pacv -D 1/xw <generated-pacv-file>
 ```
 or 
 ```
-python scripts/vis_pacv.py reference/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar.pkg.pcal.pacv
+python scripts/vis_pacv.py <generated-pacv-file>
 ```
 
+Both show `GAIN, DGAIN` and `DPHASE` as a function of frequency. The three parameters together is used to construct the Mueller matrix. Applying the inverse of the Mueller matrix to observed Stokes parameters is called calibration.
+
+Here is a trick question:
 **If the delay is positive, why is the slope of the DPHASE negative?**
 
+## Applying calibration
+
+Suppose the generated `pacv` file is 
+```
+scratch/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar.pkg.pcal.pacv
+```
+
+12 November 2022 is MJD 59894.
+
+We apply the calibration solution to the two bursts from MJD 59894 using `psrchive` command `pac`.
+It has a long list of options which you can use by running `pac -h` but we are only interested in the following options:
+```
+A program for calibrating Pulsar::Archives
+Usage: pac [options] filenames
+  -q             Quiet mode
+  -v             Verbose mode
+  -V             Very verbose mode
+
+Calibrator options:
+  -A filename    Use the calibrator in filename, as output by pcm/pacv
+  -P             Calibrate polarisation only (not flux)
+
+Input/Output options:
+  -e ext         Extension added to output filenames (default .calib)
+  -O path        Path to which output files are written
+
+See http://psrchive.sourceforge.net/manuals/pac for more details
+```
+
+We pass our calibration solution using `-A` option. We will put our calibrated archives in `scratch` by using `-O` option. Moreover, we will give them `.calP` extension by passing `-e cal` option. 
+Note that it says `filenames`, that means, we can give as many of calibrated archives as we want as arguments to `pac` and it will calibrate all of them. 
+Also, we are only interested in polarization calibration as this point, so we will pass `-P` option.
+
+But in case of MJD 59894, we only have two so our command will look like this:
+```
+pac -P -O scratch -A scratch/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar.pkg.pcal.pacv data/bursts/59894.7963734623_sn100.87_lof750_R3.ar data/bursts/59894.8480059734_sn49.24_lof750_R3.ar
+```
+
+This performs calibration of the two MJD 59894 bursts and puts the calibrated archives in `scratch` folder.
+
+Now, try to calibrate the three MJD 59243 bursts.
+_if you get stuck, and only if you get stuck, check out_ `reference/cmds_pac` _for the commands._
+
+
+## If you have calibrated all the bursts, it marks the ends of this chapter. Next is measurement.
