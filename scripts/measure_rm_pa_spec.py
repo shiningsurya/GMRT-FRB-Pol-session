@@ -455,7 +455,7 @@ C      = 299.792458 # 1E6 * m / s
 
 def get_args ():
     import argparse as agp
-    ag   = agp.ArgumentParser ('rm_spec', epilog='Part of GMRT/FRB')
+    ag   = agp.ArgumentParser ('rm_spec', epilog='Part of GMRT/FRB polarization pipeline')
     add  = ag.add_argument
     add ('ar_file', help="burst archive file")
     add ('-f','--fscrunch', default=4, type=int, help='Frequency downsample', dest='fs')

@@ -95,7 +95,7 @@ def get_args ():
     add ('-O', '--outdir', help='Output directory', default="./", dest='odir')
     add ('-v','--verbose', action='store_true', dest='v')
     add ('-n','--noise-diode', help='Noise diode', action='store_true', dest='noise_diode')
-    add ('--delays_grid', help='Delays grid (min:max:steps)', dest='delays_grid', default="0:600:2048")
+    add ('--delays_grid', help='Delays grid (min:max:steps)', dest='delays_grid', default="0:100:2048")
     add ('--ionospheric_rm', help='Ionospheric RM compute using spinifex', dest='ionosrm', default=0.0, type=float)
     return agp.parse_args ()
 

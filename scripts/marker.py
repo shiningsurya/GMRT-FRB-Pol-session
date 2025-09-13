@@ -28,11 +28,11 @@ def block_reduce (x, fac, func=np.mean):
 
 def get_args ():
     import argparse as agp
-    ag   = agp.ArgumentParser ('marker', epilog='Part of GMRT/FRB')
+    ag   = agp.ArgumentParser ('marker', epilog='Part of GMRT/FRB polarization pipeline')
     add  = ag.add_argument
     add ('file', help="archive file")
     add ('-t','--tscrunch', help='Time scrunch', default=4, type=int, dest='ts')
-    add ('-f','--fscrunch', help='Freq scrunch', default=16, type=int, dest='fs')
+    add ('-f','--fscrunch', help='Freq scrunch', default=8, type=int, dest='fs')
     return ag.parse_args ()
 
 def dd_process (idd):

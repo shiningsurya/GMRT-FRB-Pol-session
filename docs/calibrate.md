@@ -1,48 +1,29 @@
 
 # Calibration
 
-We derive calibration solution from noise diode scan and polarized quasar scan.
-We first examine the calibrator archives and then convert `psrchive-PSRFITS` format calibrator archives into `npz` file.
-This conversion is required because `psrchive` performs various data processing in the background that is a pain to implement outside of `psrchive`.
-
-We make use `make_pkg.py` script to do so. It uses `psrchive-python`. It has the following help.
+We are given two calibrator archives.
 ```
-usage: make_pkg [-h] [-O ODIR] [-j JSON] [-n] [-DD] [-RR] file
-
-positional arguments:
-  file                  archive file
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -O ODIR, --outdir ODIR
-                        Output directory
-  -j JSON, --json JSON  JSON file containing tstart,tstop,fstart,fstop
-  -n, --no-json         Make pkg without json
-  -DD                   Do not de-disperse
-  -RR                   Do not de-baseline
-
-Part of GMRT/FRB
+data/cals/3C138_bm1_pa_550_200_32_29jan2021.raw.calonoff.ar.T
+data/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar
 ```
 
-At this point, we do not need to give a `JSON` file (it will be necessary when measuring RM). 
-Calibrators do not have any dispersion measure and we do not want to keep baseline so our incantation would be like
+We use the script `make_pacv_circ.py` to derive a calibration solution from noise diode archive and polarized quasar archive.
+This script reads in `psrchive-archive` file and outputs `pacv` file and a `png` plot file which shows diagnostics.
+`pacv` file is the `psrchive` format to store calibration solution.
+We will see the `png` file to examine the calibration solution generation.
+We visualize `pacv` file either using `pacv` or `vis_pacv.py`.
+
+
+`make_pacv_circ.py` has the following help:
 ```
-python scripts/make_pkg.py -O scratch/ <calibrator-archive>
-```
+usage: make_pacv_circ [-h] [-z ZAP] [--on ON_REGION] [--off OFF_REGION] [-O ODIR] [-v] [-n] [--delays_grid DELAYS_GRID]
+                      [--ionospheric_rm IONOSRM]
+                      ar_file
 
-Replace `<calibrator-archive>` with any of the calibrator archives from `data/cals`.
-
-
-Having created `npz` file, we now generate a calibration solution using `make_pacv_circ.py`.
-This script reads in `npz` file and outputs `pacv` file and a `png` plot file which shows diagnostics.
-We can visualize `pacv` file either using `pacv` or `vis_pacv.py`.
-
-`make_csv_circ.py` has the following help:
-```
 Makes a pacv calibration solution in circular basis
 
 positional arguments:
-  npz_file              npz file (output of make_pkg.py)
+  ar_file               calibrator archive file
 
 options:
   -h, --help            show this help message and exit
@@ -61,21 +42,132 @@ options:
 GMRT-FRB polarization pipeline
 ```
 
+## Measure ON and OFF regions
+
+We need to give ON and OFF regions as input to the script. To locate them, we make use of another script `marker.py`.
+
 ```
-psrchive> pacv <pacv-file>
+usage: marker [-h] [-t TS] [-f FS] file
 
-$> python scripts/vis_pacv.py <pacv-file>
+positional arguments:
+  file                  archive file
+
+options:
+  -h, --help            show this help message and exit
+  -t TS, --tscrunch TS  Time scrunch
+  -f FS, --fscrunch FS  Freq scrunch
+
+Part of GMRT/FRB polarization pipeline
+```
+Time scrunch and frequency scrunch control averaging in time or frequency axis. It does not affect us so much at this point, so we can leave it as default.
+
+We start with identifying ON and OFF regions of `data/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar`.
+We run:
+```
+python scripts/marker.py data/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar
+```
+. We see dynamic spectra (in bottom panel) and frequency averaged profile (in top panel).
+Play around with the Constrast slider bar to see what it does.
+There are tools for zooming-in-out (magnifying glass) and panning (moving around, four-arrows-thing) in the bottom left panel, that you can also use.
+
+At this point, we are interested in measuring ON and OFF windows. We look at the Time axis. 
+As blue region corresponds to low in the time profile (top panel), that is OFF region.
+The yellow region is where the time profile is high, so that is ON region.
+By eye, we can identify
+```
+ON region  = 150 : 350
+OFF region = 0:100, 400:500 
 ```
 
-A typical png file looks like 
+_Would you agree with this?_
+Note that there is no one answer here. You could have chosen `140:340` as ON region as well. 
+It does not matter. All that matters is, what we consider as ON is ON. 
+You could very well choose all the region where the time profile is high as ON region, and everything that is not ON as OFF and it would also be OK.
 
-<img src="references/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar.pkg.pcal.png">
+Now do the same for the other calibrator archive
+```
+data/cals/3C138_bm1_pa_550_200_32_29jan2021.raw.calonoff.ar.T
+```
+What is the ON and OFF regions for the above archive?
+Identify the regions before proceeding ahead.
+
+## Generating a calibration solution
+
+`Delays grid` is the array of trial cross hand delays that is tested against the calibrator data.
+It is in the units of nanoseconds.
+The default is from 0 to 100 ns with 2048 samples of resolution.
+This range and resolution is sufficient for all calibration purposes. So it is not needed to change it. 
+You can change it but it would not change our calibration solution.
+
+#### Noise diode
+
+Since noise diode is inside the receiver, there will not be any ionospheric RM contribution.
+Moreover, as the help suggests, we will need to pass `-n` option.
+
+Therefore the command to generate calibration solution from noise diode archive would be
+```
+python scripts/make_pacv_circ.py -O scratch data/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar --on 150:350 --off 0:100,400:500 -n 
+```
+
+We put the calibration products in `scratch`. From the above command, we will have a `pacv` file which stores our calibration solution and which we will use to calibrate our bursts.
+We will also have a `png` file which looks like this:
+
+<img src="https://github.com/shiningsurya/GMRT-FRB-Pol-session/blob/15b6ad8cefd5ce27719cfc953932a18f4d54a181/reference/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar.pkg.pcal.png">
+
+The top-left panel shows the frequency average time profile. The red and the green regions are the OFF and ON regions respectively. 
+The top-right panel shows magnitude (how correct is the trial cross hand delay) against trial cross hand delays (Delays grid). The vertical dotted black line is at the chosen cross hand delay.
+The middle panel shows PHI ($\phi$, in radians) as a function of frequency with data as black points and the linear model with blue line.
+The bottom panel shows difference of data and linear model also as a function of frequency. It is clear that error is of the order of 0.1 rad or around 6 deg.
+
+**Notice how the error has structures in it. It does not seem Gaussian. There seems to be locally correlated. This has implications when we are measuring RM.**
+
+#### Polarized quasar
+
+Polarized quasar is an astronomical source. Therefore, there will be some RM contribution, not just from Inter-Stellar-Medium, but also from ionosphere. 
+
+Estimating ionospheric RM contribution is done using `get_ionos_rm.py`, which uses [`spinifex`](https://git.astron.nl/RD/spinifex) package. 
+But in order for the `spinifex` package to run, you would need an account on `cddis.nasa.gov` so that you access ionospheric Earth data which complicates the whole process. So, instead, the ionospheric RM contribution is simply provided here. 
+
+`3C138` is shown to have zero RM ([Table 4 of Perley and Bulter, 2013](https://ui.adsabs.harvard.edu/abs/2013ApJS..206...16P/abstract)). But there is one really old paper which says it has an RM of $-2.1$ rad m$^{-2}$ ([Tabara and Inoue (1980)](https://ui.adsabs.harvard.edu/abs/1980A%26AS...39..379T/abstract)). 
+We are at a bit of low frequency that it affects us, to err on side of caution, we use it. 
+
+| RM cause | RM |
+|----------|----|
+| Ionospheric RM contribution | 0.379 | 
+| Intrinsic RM | -2.1 |
+
+So, our command to generate calibration solution from `3C138` would look like this:
+```
+python scripts/make_pacv_circ.py -O scratch data/cals/3C138_bm1_pa_550_200_32_29jan2021.raw.calonoff.ar.T  --ionospheric_rm 0.379
+```
+
+**It is naturally missing OFF and ON regions as input and, you are expected to identify and fill them here.**
+
+_if you get stuck, and only if you get stuck, check out_ `reference/cmds_make_pacv` _for the commands._
 
 
-Having calibrated bursts, we start the procedure of measuring RMs.
-To begin with, we use `marker.py` to measure ON region of the burst.
-Then we use `make_pkg.py` to create a `numpy-zip` file.
-`make_pkg.py` uses `psrchive-python` to read the archive and saves as `numpy` array.
-It also uses output of `marker.py` to store the ON region within the `numpy-zip` file.
-Lastly, `measure_rm_pa_spec.py` reads the `numpy-zip` file and fits RM and PA (at infinite frequency).
+
+## Verification
+
+Verify that your cross hand delay and bias agree with the following:
+
+| Calibrator archive | Cross hand delay in ns | Bias in radians |
+|--------------------|------|-----|
+|`data/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar` | 36.852 | -1.790 |
+|`data/cals/3C138_bm1_pa_550_200_32_29jan2021.raw.calonoff.ar.T` | 31.574 | 2.756 |
+
+
+## Visualize pacv
+
+You can visualize the generated `pacv` files with either `psrchive` command `pacv` or script `vis_pacv.py`.
+
+```
+pacv -D 1/xw reference/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar.pkg.pcal.pacv
+```
+or 
+```
+python scripts/vis_pacv.py reference/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar.pkg.pcal.pacv
+```
+
+**If the delay is positive, why is the slope of the DPHASE negative?**
 

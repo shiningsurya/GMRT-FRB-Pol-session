@@ -16,7 +16,7 @@ import astropy.io.fits as aif
 
 def get_args ():
     import argparse as agp
-    ap   = agp.ArgumentParser ('vis_pacv', description='Visualizes pacv solution', epilog='Part of GMRT/FRB')
+    ap   = agp.ArgumentParser ('vis_pacv', description='Visualizes pacv solution', epilog='Part of GMRT/FRB polarization pipeline')
     add  = ap.add_argument
     add ('pacv', help='PACV solution FITS file')
     add ('-o','--opng', help='Save PNG file', default=None, dest='save_png')
