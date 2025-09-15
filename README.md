@@ -49,7 +49,7 @@ data/bursts/59894.8480059734_sn49.24_lof750_R3.ar
 
 MJD 59243 refers to 29 January 2021 and MJD 59894 to 12 November 2022.
 
-## Let's go ...
+## Get set
 
 ### Solutions
 
@@ -73,10 +73,10 @@ So, in order to measure accurate PAs using `psrchive`, one must keep the format 
 
 | Chapter | Steps |
 |--------|----|
-| [Calibration](https://github.com/shiningsurya/GMRT-FRB-Pol-session/blob/15b6ad8cefd5ce27719cfc953932a18f4d54a181/docs/calibrate.md) | Measure ON and OFF regions, generation calibration solutions, verifying and visualizing the solutions, and lastly applying the solution. |  
-| [Measurement](https://github.com/shiningsurya/GMRT-FRB-Pol-session/blob/15b6ad8cefd5ce27719cfc953932a18f4d54a181/docs/measure_rm.md) | |
+| [Calibration](https://github.com/shiningsurya/GMRT-FRB-Pol-session/blob/main/docs/calibrate.md) | Measure ON and OFF regions, generation calibration solutions, verifying and visualizing the solutions, and lastly applying the solution. |  
+| [Measurement](https://github.com/shiningsurya/GMRT-FRB-Pol-session/blob/main/docs/measure_rm.md) | Frequency zapping, identifying burst region, measuring RM and PA (at infinite frequency), performing Faraday rotation correction, and visualizing/comparing calibrated and calibrated+Faraday rotation corrected bursts. |
 
-## Glossary of commands and script
+## Glossary of commands and scripts
 
 | Action | What it does |
 |--------|--------------|
@@ -87,3 +87,10 @@ So, in order to measure accurate PAs using `psrchive`, one must keep the format 
 | `make_pacv_circ.py` | This is a `Python` script to generate a calibration solution from either a polarized quasar or noise diode scan for data in Circular basis. | 
 | `measure_rm_pa_spec.py` | `Python` script to measure RM and PA (at infinite frequency) | 
 
+## Shape of light and rotation of Fast Radio Burst 20180916B
+
+_shameless advertisement_
+
+i made a 7 minute [Youtube](https://www.youtube.com/watch?v=ALiRwGwBm6w) video which visually explains Position Angles and how Position Angles can be studied to probe rotation of an extragalactic transient source. 
+
+If you are interested, check it out. 

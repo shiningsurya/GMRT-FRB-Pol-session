@@ -3,7 +3,7 @@
 
 Having calibrated bursts, we start the procedure of measuring RMs.
 Firstly, we will zap any bad frequency channels which are full of RFI using `pazi`. 
-Then, we identify the ON region of the burst using `marker.py`.
+Then, we identify the burst region of the burst using `marker.py`.
 After which, we will measure RM and PA (at infinite frequency) using `measure_rm_pa_spec.py`.
 Finally, we use `pam` to perform the Faraday rotation correction to the calibrated archive to obtain RM corrected calibrated archives.
 
@@ -44,10 +44,6 @@ We make use `marker.py` script to identify the burst region.
 ```
 python scripts/marker.py <calibrated-archive>
 ```
-
-shows something like 
-
-<img src="">
 
 **Where is the burst region?**
 
@@ -143,11 +139,11 @@ You can also look through `reference/rms` for the diagnostic plots.
 
 | Burst | RM (rad per meter squared) | PA (at infinite frequency, degrees) |
 |---|---|---|
-| `data/bursts/59243.4552563413_sn77.27_lof750_R3.ar` | -116.964 | 33.669 |
-| `data/bursts/59243.4823292439_sn121.00_lof750_R3.ar` | -116.423 | 31.933 |
-| `data/bursts/59243.5481613923_sn97.90_lof750_R3.ar` |  -116.634 | 45.414 |
-| `data/bursts/59894.7963734623_sn100.87_lof750_R3.ar` | -62.114 | -10.562 |
-| `data/bursts/59894.8480059734_sn49.24_lof750_R3.ar` | -61.726 | -13.016 | 
+| `59243.4552563413_sn77.27_lof750_R3.ar` | -116.964 | 33.669 |
+| `59243.4823292439_sn121.00_lof750_R3.ar` | -116.423 | 31.933 |
+| `59243.5481613923_sn97.90_lof750_R3.ar` |  -116.634 | 45.414 |
+| `59894.7963734623_sn100.87_lof750_R3.ar` | -62.114 | -10.562 |
+| `59894.8480059734_sn49.24_lof750_R3.ar` | -61.726 | -13.016 | 
 
 
 ## Faraday rotation correction
@@ -188,7 +184,7 @@ _maybe i should write my own command which uses pdv_
 
 We use `psrplot` to visualize the calibrated burst, and calibrated and Faraday rotation corrected burst.
 
-It can visualize a wide variety of plots which can be seen with `psrplot -P`, but we focus on the following which visualize the polarization information:
+`psrplot` can visualize a wide variety of plots which can be seen with `psrplot -P`, but we focus on the following which visualize the polarization information:
 ```
 stokes    [s]  Stokes parameters
 Scyl      [S]  Stokes; vector in cylindrical
@@ -200,19 +196,43 @@ p3d       [P]  Stokes vector in Poincare space
 
 As before, let us suppose that we are working with `scratch/59894.7963734623_sn100.87_lof750_R3.calP` and `scratch/59894.7963734623_sn100.87_lof750_R3.PR`, where the former is the calibrated burst archive and the latter is calibrated and Faraday  rotation corrected burst archive.
 
-We would be comparing both the archives with the same plot. We will run the _almost_ the same command but with one different argument to show different plots.
-
+To begin with, we look at `Scyl` plot style. For which, we run the following:
 ```
-psrplot -p <plot-type> -jF -D 1/xw scratch/59894.7963734623_sn100.87_lof750_R3.calP
-psrplot -p <plot-type> -jF -D 2/xw scratch/59894.7963734623_sn100.87_lof750_R3.PR
+psrplot -p Scyl -jF -c "x:range=(0.4,0.6)" scratch/59894.7963734623_sn100.87_lof750_R3.calP scratch/59894.7963734623_sn100.87_lof750_R3.PR
 ```
-We change the `<plot-type>` and compare both the 
+`-jF` performs frequency averaging, otherwise, it only plots one channel. `-c "x:range=(0.4,0.6)"` sets the `x` axis limits. 
+Try running with other arguments to see what you get.
+
+We see the following:
+
+<img src="https://github.com/shiningsurya/GMRT-FRB-Pol-session/blob/main/reference/pngs/calcalrm.png">
+
+The bottom panels show frequency averaged burst profile. The black line is total intensity, the blue line is circular polarization, and the red line is the linear polarization.
+The top panels show PA with errors in degrees against the same `x` axis. 
+
+The left plot which is simply calibrated does not show any linear polarization (red), whereas the right plot shows. 
+This is because, Faraday rotation correction corrects for the rotation in Stokes Q and U, so that when you average over frequency, the average stays.
+
+You can only add Stokes parameters, not Position Angles (**why?**).
+
+Notice how the PA is flat within the burst. Also, notice that it hovers around -45 degrees. 
+`psrchive` PA is with respect to its centre frequency, that is 650 MHz. 
+
+Compare with above where we verified the PA (at infinite frequency) to be arround -10.5 degrees. Notice how for a RM of -62.114 rad per sq meter, at a frequency of 650 MHz, the PA measured would be around -47 degrees.
+What we see with `psrchive` matches well with our measurements.
+You can try to test the same for other bursts as well. The formula is 
+```
+PA_650 = PA_oo + RM * lambda_650^2
+```
+where `lambda_650` is wavelength of 650 MHz.
+
+# Circular polarization bump
+
+Do you notice the bump in blue line around where the burst emission peaks? Do you think it is significant enough? 
+Does it mean there is no intrinsic circular polarization or there is a _minor_ calibration issue that is only visible when the flux is significant enough?
 
 
+## If you have measured RMs and PAs from all the bursts, it marks the ends of this chapter and this tutorial as well. 
 
-
-
-
-
-
-
+But i encourage you to try plotting your calibrated and calibrated and Faraday rotation corrected bursts using `psrplot`.
+i also encourage you to play around with the data.

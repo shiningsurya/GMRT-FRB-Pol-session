@@ -1,14 +1,15 @@
 
 # Calibration
 
-We are given two calibrator archives.
+We are given two calibrator archives. 
+`3C138` is a polarized quasar and `NG` denotes the noise diode scan.
 ```
 data/cals/3C138_bm1_pa_550_200_32_29jan2021.raw.calonoff.ar.T
 data/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar
 ```
 
 We use the script `make_pacv_circ.py` to derive a calibration solution from noise diode archive and polarized quasar archive.
-This script reads in `psrchive-archive` file and outputs `pacv` file and a `png` plot file which shows diagnostics.
+This script reads in `psrchive-archive` file and outputs `pacv` file and a `png` plot file which displays various diagnostics.
 `pacv` file is the `psrchive` format to store calibration solution.
 We will see the `png` file to examine the calibration solution generation.
 We visualize `pacv` file either using `pacv` or `vis_pacv.py`.
@@ -62,11 +63,15 @@ Part of GMRT/FRB polarization pipeline
 ```
 Time scrunch and frequency scrunch control averaging in time or frequency axis. It does not affect us so much at this point, so we can leave it as default.
 
+
 We start with identifying ON and OFF regions of `data/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar`.
-We run:
+We run and then we see:
 ```
 python scripts/marker.py data/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar
 ```
+
+<img src="https://github.com/shiningsurya/GMRT-FRB-Pol-session/blob/main/reference/jsons/marker.png">
+
 We see dynamic spectra (in bottom panel) and frequency averaged profile (in top panel).
 Play around with the Constrast slider bar to see what it does.
 There are tools for zooming-in-out (magnifying glass) and panning (moving around, four-arrows-thing) in the bottom left panel, that you can also use.
@@ -124,10 +129,10 @@ The bottom panel shows difference of data and linear model also as a function of
 
 #### Polarized quasar
 
-Polarized quasar is an astronomical source. Therefore, there will be some RM contribution, not just from Inter-Stellar-Medium, but also from ionosphere. 
+Polarized quasar is an astronomical source. Therefore, there will be some RM contribution, not just from Interstellar Medium (ISM), but also from ionosphere. 
 
 Estimating ionospheric RM contribution is done using `get_ionos_rm.py`, which uses [`spinifex`](https://git.astron.nl/RD/spinifex) package. 
-But in order for the `spinifex` package to run, you would need an account on `cddis.nasa.gov` so that you access ionospheric Earth data which complicates the whole process. So, instead, the ionospheric RM contribution is simply provided here. 
+But in order for the `spinifex` package to run, you would need an account on `cddis.nasa.gov` so that you can access ionospheric Earth data,  which complicates the whole process. So, instead, the ionospheric RM contribution is simply provided here. 
 
 `3C138` is shown to have zero RM ([Table 4 of Perley and Bulter, 2013](https://ui.adsabs.harvard.edu/abs/2013ApJS..206...16P/abstract)). But there is one really old paper which says it has an RM of -2.1 rad per meter square ([Tabara and Inoue, 1980](https://ui.adsabs.harvard.edu/abs/1980A%26AS...39..379T/abstract)). 
 We are at a bit of low frequency that it affects us, to err on side of caution, we use it. 
