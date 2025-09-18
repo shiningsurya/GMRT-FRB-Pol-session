@@ -1,0 +1,5 @@
+#!/bin/bash
+
+pdflatex m.tex
+
+convert -density 7200 m.pdf m.png

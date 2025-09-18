@@ -180,8 +180,6 @@ Run similar commands to do Faraday rotation correction of the remaining bursts.
 
 ## Visualize
 
-_maybe i should write my own command which uses pdv_
-
 We use `psrplot` to visualize the calibrated burst, and calibrated and Faraday rotation corrected burst.
 
 `psrplot` can visualize a wide variety of plots which can be seen with `psrplot -P`, but we focus on the following which visualize the polarization information:

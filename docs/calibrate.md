@@ -134,7 +134,7 @@ Polarized quasar is an astronomical source. Therefore, there will be some RM con
 Estimating ionospheric RM contribution is done using `get_ionos_rm.py`, which uses [`spinifex`](https://git.astron.nl/RD/spinifex) package. 
 But in order for the `spinifex` package to run, you would need an account on `cddis.nasa.gov` so that you can access ionospheric Earth data,  which complicates the whole process. So, instead, the ionospheric RM contribution is simply provided here. 
 
-`3C138` is shown to have zero RM ([Table 4 of Perley and Bulter, 2013](https://ui.adsabs.harvard.edu/abs/2013ApJS..206...16P/abstract)). But there is one really old paper which says it has an RM of -2.1 rad per meter square ([Tabara and Inoue, 1980](https://ui.adsabs.harvard.edu/abs/1980A%26AS...39..379T/abstract)). 
+`3C138` is shown to have zero RM ([Table 4 of Perley and Butler, 2013](https://ui.adsabs.harvard.edu/abs/2013ApJS..206...16P/abstract)). But there is one really old paper which says it has an RM of -2.1 rad per meter square ([Tabara and Inoue, 1980](https://ui.adsabs.harvard.edu/abs/1980A%26AS...39..379T/abstract)). 
 We are at a bit of low frequency that it affects us, to err on side of caution, we use it. 
 
 | RM cause | RM |
@@ -143,7 +143,7 @@ We are at a bit of low frequency that it affects us, to err on side of caution, 
 | Intrinsic RM | -2.1 |
 
 In addition to spurious RM, there is also parallactic angle rotation that happens because of how uGMRT tracks the source.
-Although, it is not strictly required in our case as we have circular basis (**why?**), we nevertheless account for this by computing parallactic angle and compensating for it. We also compensate for the intrinsic position angle of 3C138 ([Perley and Bulter, 2013](https://ui.adsabs.harvard.edu/abs/2013ApJS..206...16P/abstract)).
+Although, it is not strictly required in our case as we have circular basis (**why?**), we nevertheless account for this by computing parallactic angle and compensating for it. We also compensate for the intrinsic position angle of 3C138 ([Perley and Butler, 2013](https://ui.adsabs.harvard.edu/abs/2013ApJS..206...16P/abstract)).
 This step is done automatically by the `make_pacv_circ.py`.
 
 So, our command to generate calibration solution from `3C138` would look like this:
@@ -163,8 +163,8 @@ At this point, we will only verify that your cross hand delay and bias measureme
 
 | Calibrator archive | Cross hand delay in ns | Bias in radians |
 |--------------------|------|-----|
-|`data/cals/FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar` | 36.852 | -1.790 |
-|`data/cals/3C138_bm1_pa_550_200_32_29jan2021.raw.calonoff.ar.T` | 31.574 | 2.756 |
+|`FRBR3_NG_bm1_pa_550_200_32_12nov2022.raw.5.noise.Tar` | 36.852 | -1.790 |
+|`3C138_bm1_pa_550_200_32_29jan2021.raw.calonoff.ar.T` | 31.574 | 2.756 |
 
 In reality, to verify your calibration solutions, you would need to self calibrate, that is, apply the calibration solution to the same calibrator data from which it is derived and look for anomalies. Or apply the calibration solution on known source (such as a pulsar) and compare with literature measurements.
 All of which is beyond the scope of this tutorial.

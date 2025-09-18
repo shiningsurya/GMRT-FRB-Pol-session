@@ -1,3 +1,7 @@
 
 work
 scratch
+
+slides/texer/*.aux
+slides/texer/*.log
+slides/texer/*.pdf
