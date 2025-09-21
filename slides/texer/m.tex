@@ -7,20 +7,60 @@
 \usepackage{xcolor}
 
 \definecolor{myc}{HTML}{0000ff}
+\definecolor{red}{HTML}{ff0000}
 \definecolor{bgc}{HTML}{eeeeee}
 
 \pagecolor{bgc}
 
 \begin{document}
+\boldmath
+\color{myc}
 %${\bm f}_{\rm tide}$
 %$\color{myc} {\bm \tau} \gg {\bm P}$
 %$\color{myc} \bm{e\sinh(H(t))} \bm{- H(t)} \bm{= M(t)}$
 %$\color{myc} \bm{ \frac{1}{c^2}\frac{\partial^2 \vec{E}}{\partial t^2} - \nabla^2\vec{E} = 0  }$
 %$\color{myc} \bm{ \vec{k}\cdot\vec{E} = 0 }$
 %$\color{myc} \bm{ \vec{E} (r, t) = \Re \left\{ \vec{E_0} \exp \left[ j \left( \vec{k}\cdot\vec{r} - \omega t \right)  \right] \right\} }$
-%$\color{myc} \bm{ V = |E_0|^2_p \sin(2\beta) }$
+%$\color{myc} \bm{  }$
 %$\color{myc} \bm{ Q = |E_0|^2_p \cos(2\beta) \cos(2\alpha) }$
 %$\color{myc} \bm{ U = |E_0|^2_p \cos(2\beta) \sin(2\alpha) }$
-$\color{myc} \bm{ I = |E_0|^2 }$
+%$\color{myc} \bm{  }$
+%$I = |E_0|^2$
+%\begin{equation*}
+$
+	%\begin{bmatrix} Z_1 \\ Z_2 \end{bmatrix} = 
+	%\begin{bmatrix} g_1 e^{j\phi_1} & 0 \\ 0 & g_2 e^{j\phi_2} \end{bmatrix}
+	%\sqrt{g_1g_2} e^{j\frac{1}{2}(\phi_1+\phi_2)}\begin{bmatrix} \sqrt{\frac{g_1}{g_2}} e^{j\frac{1}{2}(\phi_1-\phi_2)} & 0 \\ 0 & \sqrt{\frac{g_2}{g_1}} e^{-j\frac{1}{2}(\phi_1-\phi_2)} \end{bmatrix}
+	%G\begin{bmatrix} e^{\gamma+j\phi} & 0 \\ 0 & e^{-\gamma-j\phi} \end{bmatrix}
+	%\begin{bmatrix} g_1 e^{j\phi_1} & 0 \\ 0 & g_2 e^{j\phi_2} \end{bmatrix}
+	%\begin{bmatrix} z_1 \\ z_2 \end{bmatrix} 
+	%%%%%%%%%%%%%%%%%%
+%	\phi = \vec{k}\cdot\vec{r} - \omega t
+	%%%%%%%%%%%%%%%
+	%\frac{1}{c^2}\frac{\partial^2 \vec{B}}{\partial t^2} - \nabla^2\vec{B} = 0
+%\vec{\nabla}\cdot\vec{E} = 0 \implies \vec{k}\cdot\vec{E} = 0
+%\vec{E} (\vec{r}, t) = \Re \left\{ \vec{E_0} \exp \left[ j \left( \vec{k}\cdot\vec{r} - \omega t \right)  \right] \right\}
+	%%%%%%%%%%%%%%%
+	%|E_0|^2_p
+	%I = |E_0|^2
+	%V = |E_0|^2_p \sin(2\epsilon)
+	%Q = |E_0|^2_p \cos(2\epsilon) \cos(2\psi)
+	%U = |E_0|^2_p \cos(2\epsilon) \sin(2\psi)
+%	z_B
+	%%%%%%%%%%%%%%%
+%	\begin{bmatrix}
+%		I + Q & -U -jV \\
+%		-U + jV & I - Q
+%	\end{bmatrix}
+%\begin{bmatrix}
+%	z_A^\star z_A & z_A^\star z_B \\
+%	z_A z_B^\star & z_B^\star z_B 
+%\end{bmatrix}
+	%%%%%%%%%%%%%%%
+\begin{bmatrix}
+	z_A \\ z_B
+	\end{bmatrix} = \begin{bmatrix} g_A e^{j\phi_A} & 0 \\ 0 & g_B e^{j\phi_B} \end{bmatrix} \begin{bmatrix} y_A \\ y_B\end{bmatrix}
+$
+%\end{equation*}
 %$\color{myc} \bm{    }$
 \end{document}

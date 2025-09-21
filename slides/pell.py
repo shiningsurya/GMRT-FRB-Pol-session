@@ -7,13 +7,74 @@ numerically it is difficult to find a direct solution
 
 import numpy as np
 import matplotlib.pyplot as plt
-
+import matplotlib.colors as mc
+import matplotlib.path as mp
 import matplotlib.patches as mpa
+from matplotlib.collections import LineCollection
 
 import scipy.optimize as so
 
 N     = 2048
 TAXIS = np.linspace ( 0., 2.0*np.pi, N ) 
+
+def colored_line(x, y, c, ax, **lc_kwargs):
+    """
+    Plot a line with a color specified along the line by a third value.
+
+    It does this by creating a collection of line segments. Each line segment is
+    made up of two straight lines each connecting the current (x, y) point to the
+    midpoints of the lines connecting the current point with its two neighbors.
+    This creates a smooth line with no gaps between the line segments.
+
+    Parameters
+    ----------
+    x, y : array-like
+        The horizontal and vertical coordinates of the data points.
+    c : array-like
+        The color values, which should be the same size as x and y.
+    ax : Axes
+        Axis object on which to plot the colored line.
+    **lc_kwargs
+        Any additional arguments to pass to matplotlib.collections.LineCollection
+        constructor. This should not include the array keyword argument because
+        that is set to the color argument. If provided, it will be overridden.
+
+    Returns
+    -------
+    matplotlib.collections.LineCollection
+        The generated line collection representing the colored line.
+    """
+    if "array" in lc_kwargs:
+        warnings.warn('The provided "array" keyword argument will be overridden')
+
+    # Default the capstyle to butt so that the line segments smoothly line up
+    default_kwargs = {"capstyle": "butt"}
+    default_kwargs.update(lc_kwargs)
+
+    # Compute the midpoints of the line segments. Include the first and last points
+    # twice so we don't need any special syntax later to handle them.
+    x = np.asarray(x)
+    y = np.asarray(y)
+    x_midpts = np.hstack((x[0], 0.5 * (x[1:] + x[:-1]), x[-1]))
+    y_midpts = np.hstack((y[0], 0.5 * (y[1:] + y[:-1]), y[-1]))
+
+    # Determine the start, middle, and end coordinate pair of each line segment.
+    # Use the reshape to add an extra dimension so each pair of points is in its
+    # own list. Then concatenate them to create:
+    # [
+    #   [(x1_start, y1_start), (x1_mid, y1_mid), (x1_end, y1_end)],
+    #   [(x2_start, y2_start), (x2_mid, y2_mid), (x2_end, y2_end)],
+    #   ...
+    # ]
+    coord_start = np.column_stack((x_midpts[:-1], y_midpts[:-1]))[:, np.newaxis, :]
+    coord_mid = np.column_stack((x, y))[:, np.newaxis, :]
+    coord_end = np.column_stack((x_midpts[1:], y_midpts[1:]))[:, np.newaxis, :]
+    segments = np.concatenate((coord_start, coord_mid, coord_end), axis=1)
+
+    lc = LineCollection(segments, **default_kwargs)
+    lc.set_array(c)  # set the colors of each segment
+
+    return ax.add_collection(lc)
 
 class PolarizationEllipse:
     def __init__ (self, alpha, beta, phase=0., mag=1.):
@@ -69,29 +130,67 @@ class PolarizationEllipse:
 
 if __name__ == "__main__":
     dr   = np.deg2rad
-    pell = PolarizationEllipse ( dr(45.0), dr(0.), phase=dr(0.), mag=1. )
+    given = PolarizationEllipse ( dr(45.0), dr(10.), phase=dr(0.), mag=1. )
 
-    ###
-    p1, p2 = pell.decompose ( dr(0.), dr(45.) )
+    # ONG   = "pngs/base.png"
+    # comp1, comp2 = given.decompose ( dr(60.), dr(20.) )
+    # ONG   = "pngs/linear.png"
+    # comp1, comp2 = given.decompose ( dr(0.), dr(0.) )
+    ONG   = "pngs/circular.png"
+    comp1, comp2 = given.decompose ( dr(0.), dr(45.) )
 
-    print ( pell, p1, p2, sep='\n' )
+    print ( given, comp1, comp2, sep='\n' )
 
+    fig  = plt.figure ('decomp')
 
-    fig  = plt.figure ('pell')
-    ax   = fig.add_subplot ()
+    axg, ax1, ax2 = fig.subplots ( 1, 3, sharex=True, sharey=True)
 
+    norm  = mc.Normalize ( 0., 360 )
+    sc    = plt.cm.ScalarMappable ( norm, 'gist_rainbow' )
 
-    ax.scatter ( pell.ex, pell.ey, marker='.', c='k' )
-    ax.scatter ( p1.ex, p1.ey, marker='.', c='b' )
-    ax.scatter ( p2.ex, p2.ey, marker='.', c='r' )
-    # ax.scatter ( p1.ex+p2.ex, p1.ey+p2.ey, marker='.', c='g' )
+    cax = fig.colorbar ( sc, ax=[axg, ax1, ax2], orientation='horizontal', label='Phase / deg' )
+    # cax = fig.colorbar ( sc, ax=[ax2], orientation='vertical', label='Phase / deg' )
 
-    ax.set_aspect('auto')
+    colored_line ( given.ex, given.ey, TAXIS, axg, cmap='gist_rainbow', linewidth=4, zorder=10 )
 
-    ax.set_xlim (-1., 1.)
-    ax.set_ylim (-1., 1.)
+    colored_line ( comp1.ex, comp1.ey, TAXIS, ax1, cmap='gist_rainbow', linewidth=4, zorder=10 )
 
-    plt.show ()
+    colored_line ( comp2.ex, comp2.ey, TAXIS, ax2, cmap='gist_rainbow', linewidth=4, zorder=10 )
+
+    for ax, ee in zip ([axg, ax1, ax2],[given, comp1, comp2]):
+        ax.spines[['left','bottom']].set_position('center')
+        ax.spines[['right','top']].set_visible(False)
+        ax.set_xlim (-1.1, 1.1)
+        ax.set_ylim (-1.1, 1.1)
+        # ax.axis('off')
+        ax.set_aspect('equal')
+        ax.set_facecolor ( "#eeeeee" )
+
+        ##
+        ax.set_xticks ([-1.0,  1.0], labels=["", ""])
+        ax.set_yticks ([-1.0,  1.0], labels=["",""])
+        ##
+        ax.tick_params (axis='x', top=False, which='both')
+        ax.tick_params (axis='y', right=False, which='both')
+        ax.tick_params (axis='x', which='minor', bottom=False)
+        ax.tick_params (axis='y', which='minor', left=False)
+        ax.tick_params (axis='both', direction='inout')
+
+    axg.scatter ( 0.7, -0.7, marker=r'$\circlearrowleft$', c='k', s=100 )
+    ax1.scatter ( -0.7, -0.7, marker=r'$\circlearrowleft$', c='k', s=100 )
+    ax2.scatter ( -0.7, -0.7, marker=r'$\circlearrowright$', c='k', s=100 )
+    
+    axg.set_title('Given')
+
+    ax1.set_title("First\ncomponent")
+
+    ax2.set_title("Second\ncomponent")
+
+    axg.text (1.3, 0., "=", ha='center', va='center', weight='bold', fontsize='x-large', color='blue')
+    ax1.text (1.3, 0., "+", ha='center', va='center', weight='bold', fontsize='x-large', color='blue')
+
+    # plt.show ()
+    fig.savefig(ONG, dpi=300, bbox_inches='tight', facecolor='#eeeeee')
 
 
 

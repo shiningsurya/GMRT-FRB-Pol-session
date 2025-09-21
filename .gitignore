@@ -5,3 +5,6 @@ scratch
 slides/texer/*.aux
 slides/texer/*.log
 slides/texer/*.pdf
+slides/texer/m.png
+
+slides/__pycache__
