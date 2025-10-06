@@ -130,13 +130,15 @@ class PolarizationEllipse:
 
 if __name__ == "__main__":
     dr   = np.deg2rad
-    given = PolarizationEllipse ( dr(45.0), dr(10.), phase=dr(0.), mag=1. )
+    given = PolarizationEllipse ( dr(60.0), dr(0.), phase=dr(0.), mag=1. )
 
     # ONG   = "pngs/base.png"
     # comp1, comp2 = given.decompose ( dr(60.), dr(20.) )
     # ONG   = "pngs/linear.png"
     # comp1, comp2 = given.decompose ( dr(0.), dr(0.) )
-    ONG   = "pngs/circular.png"
+    # ONG   = "pngs/circular.png"
+    # comp1, comp2 = given.decompose ( dr(0.), dr(45.) )
+    ONG   = "pngs/fr0.png"
     comp1, comp2 = given.decompose ( dr(0.), dr(45.) )
 
     print ( given, comp1, comp2, sep='\n' )
@@ -156,6 +158,10 @@ if __name__ == "__main__":
     colored_line ( comp1.ex, comp1.ey, TAXIS, ax1, cmap='gist_rainbow', linewidth=4, zorder=10 )
 
     colored_line ( comp2.ex, comp2.ey, TAXIS, ax2, cmap='gist_rainbow', linewidth=4, zorder=10 )
+
+    ## put phase start
+    # ax1.scatter ( comp1.ex[0], comp1.ey[0], marker='D', c='k', zorder=100 )
+    # ax2.scatter ( comp2.ex[0], comp2.ey[0], marker='D', c='k', zorder=100 )
 
     for ax, ee in zip ([axg, ax1, ax2],[given, comp1, comp2]):
         ax.spines[['left','bottom']].set_position('center')

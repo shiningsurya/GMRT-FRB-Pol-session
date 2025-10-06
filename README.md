@@ -6,7 +6,7 @@ Welcome to the hands-on session of the GMRT Polarimetry. In this session, we wil
 
 ### Tutorial 
 
-This hands-on session assumes a bit of polarization knowledge that is presented in the [google-slides](link-here).
+This hands-on session assumes a bit of polarization knowledge that is presented in the [google-slides](https://docs.google.com/presentation/d/1lWzK26Zfho8TleKpMfEZ7EOMUav63rJAiwPdAGZWO9o/edit?usp=sharing).
 The presentation explains the science and it is expected that you have understood it before you attempt this hands-on exercise.
 If at any point the science is not clear, it is recommended to refer back to the slides. 
 
