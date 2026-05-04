@@ -8,8 +8,6 @@ import sys
 import json
 
 import numpy as np
-import pandas as pd
-
 
 try:
     import psrchive
@@ -22,6 +20,7 @@ except ImportError:
 # from tqdm import tqdm
 
 import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as mgs
 import matplotlib.colors as mc
@@ -40,6 +39,18 @@ def block_reduce (x, fac, func=np.mean):
     # dx  = x.reshape (rxs).mean (mxs)
     dx  = func (x.reshape (rxs), axis=mxs)
     return dx
+
+def write_csv ( cet, fname ):
+    """
+    need to remove pandas dependency
+    """
+    kstr, vstr = "",""
+    for k,v in cet.items():
+        kstr += str(k) + ","
+        vstr += str(v) + ","
+    with open ( fname, 'w' ) as _f:
+        _f.write ( kstr[:-1] + "\n" + vstr[:-1] + "\n" )
+
 
 def read_pkg ( ar_file ):
     """
@@ -87,6 +98,7 @@ def read_pkg ( ar_file ):
 def read_prepare_tscrunch ( 
         pkg,
         on_region,
+        of_region,
         fscrunch,
         v=False
     ):
@@ -108,13 +120,19 @@ def read_prepare_tscrunch (
     freq_list = np.array ( pkg['freqs'] )
 
     on_mask = np.zeros ( pkg['nbin'], dtype=bool )
-    of_mask = np.ones ( pkg['nbin'], dtype=bool )
+    of_mask = np.zeros ( pkg['nbin'], dtype=bool )
     ff_mask = np.zeros ( pkg['nchan'], dtype=bool )
 
-    ## 20230314 : everything that is not ON is OFF
     ons     = slice ( on_region['tstart'], on_region['tstop'] )
     on_mask[ons]   = True
-    of_mask[on_region['tstart']:on_region['tstop']]   = False
+
+    ## 20230314 : everything that is not ON is OFF
+    if off_region is None:
+        of_mask[:] = True
+        of_mask[on_region['tstart']:on_region['tstop']]   = False
+    else:
+        ofs            = slice ( off_region['tstart'], off_region['tstop'] )
+        of_mask[ofs]   = True
 
     ofs     = slice ( on_region['fstart'], on_region['fstop'] )
     ff_mask[ofs]   = True
@@ -272,7 +290,8 @@ class RMPABootstrap:
         nsamples     = self.w2.size
         ntrial       = int ( f_trial * nsamples )
 
-        rng          = np.random.default_rng()
+        # rng          = np.random.default_rng()
+        rng          = np.random
 
         re_stat      = np.zeros ( n_resamples, dtype=np.float32 )
         pe_stat      = np.zeros ( n_resamples, dtype=np.float32 )
@@ -280,7 +299,8 @@ class RMPABootstrap:
         # for i_resample in tqdm ( range(n_resamples), desc='Bootstrap', unit='bt' ):
         for i_resample in range ( n_resamples ):
             print ("   Bootstrap: {i_resample:03d} / {n_resamples:03d} ... ".format(i_resample=i_resample, n_resamples=n_resamples), end='\r')
-            __i    = rng.choice ( nsamples, size=ntrial, replace=True, shuffle=False )
+            # __i    = rng.choice ( nsamples, size=ntrial, replace=True, shuffle=False )
+            __i    = rng.choice ( nsamples, size=ntrial, replace=True, )
             ## slice
             t_w2   = self.w2 [ __i ]
             t_pa   = self.pa [ __i ]
@@ -362,7 +382,8 @@ class PASpec:
         mag  = np.abs ( ret )
         pa   = 0.5 * np.angle ( ret )
 
-        wpa  = np.unwrap ( pa, period=np.pi )
+        # wpa  = np.unwrap ( pa, period=np.pi )
+        wpa  = np.unwrap ( pa, discont=0.5*np.pi )
 
         slope, _ = np.polyfit ( rms, wpa, 1 )
 
@@ -460,8 +481,9 @@ def get_args ():
     add ('ar_file', help="burst archive file")
     add ('-f','--fscrunch', default=4, type=int, help='Frequency downsample', dest='fs')
     add ('-n','--ntrials', default=999, type=int, help='Number of bootstrap trials', dest='ntrials')
-    add ( '-r', '--rmgrid', help='RM grid (min:max:steps)', default='-200:-10:2048', dest='rmgrid' )
+    add ( '-r', '--rmgrid', help='RM grid (min:max:steps)', default='-100:100:4096', dest='rmgrid' )
     add ( '--ton', help='Burst time window in bins (start:stop)', required=True, dest='ton' )
+    add ( '--toff', help='Off time window in bins (start:stop)', dest='toff' )
     add ( '--fon', help='Burst frequency window in bins (start:stop)', required=True, dest='fon' )
     # add ('--rmlow', help='Minimum RM in grid', dest='rmlow', default=-200, type=float)
     # add ('--rmhigh', help='Maximum RM in grid', dest='rmhigh',default=-10, type=float)
@@ -490,6 +512,11 @@ if __name__ == "__main__":
         on_region['fstop']     = int ( _fstop )
     except:
         raise RuntimeError(" ON region not understood ton={ton} fon={fon}".format(ton=args.ton, fon=args.fon))
+    off_region = None
+    if args.toff is not None:
+        _tstart, _tstop = args.toff.split(':')
+        off_region = {'tstart':int ( _tstart ), 'tstop':int ( _tstop )}
+        
     ####################################
     try:
         rmlow, rmhigh, rmsteps = args.rmgrid.split(':')
@@ -509,6 +536,7 @@ if __name__ == "__main__":
     freq_list, I, Q, U, V, I_err, Q_err, U_err, V_err = read_prepare_tscrunch (
         pkg,
         on_region,
+        off_region,
         args.fs,
         args.v
     )
@@ -579,12 +607,11 @@ if __name__ == "__main__":
     RET['boot_rm'] = rm_boot
     RET['boot_pa'] = pa_boot
     ###########################################################
-    cf   = pd.DataFrame ( CET, index=[0] )
-
-    ###########################################################
     fig = plt.figure ('paspec', figsize=(9,5))
 
-    gs  = mgs.GridSpec ( 3, 3, figure=fig )
+    # gs  = mgs.GridSpec ( 3, 3, figure=fig )
+    gs  = mgs.GridSpec ( 3, 3 )
+    # axes = fig.subplot_mosiac ( [ ['axrh', 'axph', 'axgg'], ['axpa', 'axpa', 'axpa'], ['axrs', 'axrs', 'axrs'] ] )
 
     axpa = fig.add_subplot ( gs[1,:] )
     axrs = fig.add_subplot ( gs[2,:], sharex=axpa )
@@ -613,8 +640,8 @@ if __name__ == "__main__":
 
     to_freq = lambda wav : (C / wav**0.5)
     from_freq = lambda freq: (C / freq)**2
-    faxpa= axpa.secondary_xaxis ('top', functions=(to_freq, from_freq))
-    faxpa.set_xlabel('Freq / MHz')
+    # faxpa= axpa.secondary_xaxis ('top', functions=(to_freq, from_freq))
+    # faxpa.set_xlabel('Freq / MHz')
 
     axpa.set_xlim ( from_freq(data_freq_high), from_freq(data_freq_low) )
     axpa.set_ylim ( -90., 90. )
@@ -639,7 +666,10 @@ if __name__ == "__main__":
     ###########################################################
     # plt.show ()
     fig.savefig ( os.path.join ( args.odir, bn + ".png" ), dpi=300, bbox_inches='tight' )
-    cf.to_csv ( os.path.join ( args.odir, bn + "_spec.csv" ), index=False )
+    write_csv ( CET, os.path.join ( args.odir, bn + "_spec.csv" ) )
+    # cf.to_csv ( os.path.join ( args.odir, bn + "_spec.csv" ), index=False )
+    for k,v in RET.items():
+        if np.ma.isMaskedArray ( v ): RET[k] = np.array ( v.filled(np.nan) )
     np.savez ( os.path.join ( args.odir, bn + "_spec.npz"), **RET)
 
 
