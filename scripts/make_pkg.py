@@ -76,13 +76,16 @@ if __name__ == "__main__":
     mid_time     = 0.5 * ( start_time + end_time )
     ###
     src          = ff.get_source ()
+    srccoord     = ff.get_coordinates()
+    srcra        = srccoord.ra().getDegrees()
+    srcdec       = srccoord.dec().getDegrees()
     ##########################################
     with open (outfile, 'wb') as f:
         pkg  = dict(
            data=data, wts=wts, freqs=freqs,
            bandwidth=fbw, center_freq=fcen, nchan=nchan, nbin=nbin,
            mjd=start_time, src=src, duration=dur,
-           basis=basis
+           basis=basis, radeg=srcra, decdeg=srcdec
         )
         pkg.update ( ran )
         np.savez (f, **pkg)
