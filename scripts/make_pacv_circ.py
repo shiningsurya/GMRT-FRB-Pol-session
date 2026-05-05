@@ -13,6 +13,9 @@ import os
 import json
 
 import numpy as np
+import pandas as pd
+from io import StringIO
+
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as mgs
 
@@ -31,13 +34,20 @@ except ImportError:
     sys.exit (0)
 
 ################################
-RAD,DECD         = dict(),dict()
-RAD['3C138']     = 79.5687917
-DECD['3C138']    = 16.5907806
-RAD['R3']        = 29.50312583
-DECD['R3']       = 65.71675422
-RAD['3C48']      = 24.4220417
-DECD['3C48']     = 33.1597417
+#RAD,DECD         = dict(),dict()
+#RAD['3C138']     = 79.5687917
+#DECD['3C138']    = 16.5907806
+#RAD['R3']        = 29.50312583
+#DECD['R3']       = 65.71675422
+#RAD['3C48']      = 24.4220417
+#DECD['3C48']     = 33.1597417
+datxt = r"""
+3C138 79.5687917 16.5907806
+3C48  24.4220417 33.1597417
+R3    29.50312583 65.71675422
+0217+738 34.882245 73.9229
+"""
+dadf  = pd.read_csv (StringIO(datxt), names=['source','radeg','decdeg'], sep='\s+').set_index('source')
 
 C                = 299792458.0 # m/s
 
@@ -75,12 +85,17 @@ def read_pkg ( ar_file ):
     mid_time     = 0.5 * ( start_time + end_time )
     ###
     src          = ff.get_source ()
+    ###
+    srccoord     = ff.get_coordinates()
+    srcra        = srccoord.ra().getDegrees()
+    srcdec       = srccoord.dec().getDegrees()
     ##########################################
     pkg  = dict(
        data=data, wts=wts, freqs=freqs,
        bandwidth=fbw, center_freq=fcen, nchan=nchan, nbin=nbin,
        mjd=start_time, src=src, duration=dur,
-       basis=basis
+       basis=basis,
+       ra  = srcra, dec=srcdec
     )
     return pkg
 
@@ -95,7 +110,7 @@ def get_args ():
     add ('-O', '--outdir', help='Output directory', default="./", dest='odir')
     add ('-v','--verbose', action='store_true', dest='v')
     add ('-n','--noise-diode', help='Noise diode', action='store_true', dest='noise_diode')
-    add ('--delays_grid', help='Delays grid (min:max:steps)', dest='delays_grid', default="0:100:2048")
+    add ('--delays_grid', help='Delays grid (min:max:steps)', dest='delays_grid', default="-100:100:8192")
     add ('--ionospheric_rm', help='Ionospheric RM compute using spinifex', dest='ionosrm', default=0.0, type=float)
     return agp.parse_args ()
 
@@ -535,6 +550,8 @@ if __name__ == "__main__":
     mata        = np.ma.MaskedArray ( pkg['data'], mask=pkg['wts'] )[0]
     mjd         = pkg['mjd']
     source      = pkg['src']
+    source_ra   = pkg['ra']
+    source_dec  = pkg['dec']
     nchan       = freqs_mhz.shape[0]
     fbw         = freqs_mhz[1] - freqs_mhz[0]
     bandwidth   = pkg['bandwidth']
@@ -544,8 +561,15 @@ if __name__ == "__main__":
     wav2        = np.power ( 299.792458 / freqs_mhz, 2.0 )
     ### (Stokes, freq, bin)
     ### make masks
-    onmask      = mask_maker ( args.on_region, mata.shape[2] )
-    ofmask      = mask_maker ( args.off_region, mata.shape[2] )
+    if args.on_region is None:
+        pp      = mata[0].mean(0)
+        ppmax   = pp.max()
+        percent = 0.60
+        onmask  = pp >= percent*ppmax
+        ofmask  = np.logical_not ( onmask )
+    else:
+        onmask      = mask_maker ( args.on_region, mata.shape[2] )
+        ofmask      = mask_maker ( args.off_region, mata.shape[2] )
     fqmask      = mask_maker ( args.zap, mata.shape[1] )
     #### ON - OFF
     oo          = mata[...,onmask].mean(-1) - mata[...,ofmask].mean(-1)
@@ -578,7 +602,9 @@ if __name__ == "__main__":
     pinfo     = BasePacvInfo ( mjd )
     pinfo.fill_freq_info ( nchan, bandwidth, fcen, freqs_mhz )
     ##
-    pinfo.fill_source_info ( source, RAD[source], DECD[source] )
+    #pinfo.fill_source_info ( source, RAD[source], DECD[source] )
+    #pinfo.fill_source_info ( source, dadf.radeg.loc[source], dadf.decdeg.loc[source] )
+    pinfo.fill_source_info ( source, source_ra, source_dec )
     pinfo.fill_beam_info ( 0. )
     #### parallactic angle
     #### position angle
