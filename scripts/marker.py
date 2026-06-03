@@ -5,6 +5,7 @@ import json
 
 import numpy as np
 
+import matplotlib
 import matplotlib.pyplot as plt
 
 from matplotlib.widgets import RangeSlider, RectangleSelector
@@ -61,6 +62,9 @@ def read_ar (f):
     nchan   = fh['NCHAN']
     npol    = fh['NPOL']
     tbin    = fh['TBIN'] # second
+    if tbin == '*': 
+        print (" received * as TBIN, updating it to 327.68E-6")
+        tbin = 327.68E-6
     fbw     = fh['CHAN_BW'] # MHz
     #### get scales, offsets, weights and data
     scl     = fd['DAT_SCL'].reshape ((1, npol, nchan, 1))
@@ -71,7 +75,10 @@ def read_ar (f):
     dd      = (scl * fd['DATA']) + offs
     dd[...,mask,:] = np.nan
     #### #### coherence products still
-    idd     = dd[0,0] + dd[0,1]
+    if npol == 4:
+        idd     = dd[0,0] + dd[0,1]
+    else:
+        idd     = dd[0,0]
     return dd_process ( idd ), tbin, fbw
 
 def tester (f):
@@ -161,10 +168,11 @@ if __name__ == "__main__":
         saverange['tstop']  = int ( np.ceil  ( x2 ) )
         saverange['fstart'] = int ( np.floor ( y1 ) )
         saverange['fstop']  = int ( np.ceil  ( y2 ) )
+        #print ( x1, x2, y1, y2, tbin_s, fbw_mhz )
         ## measured parameters
         saverange['width_ms'] = 1E3 * tbin_s * abs(x2 - x1)
         saverange['bw_mhz']   = fbw_mhz * abs(y2 - y1)
-        # print ( f" ranges time=({saverange['tstart']:d},{saverange['tstop']:d}) freq=({saverange['fstart']:d},{saverange['fstop']:d})" )
+        #print ( f" ranges time=({saverange['tstart']:d},{saverange['tstop']:d}) freq=({saverange['fstart']:d},{saverange['fstop']:d})" )
 
     def save_as_json (event):
         if event.key == 'm' or event.key == 'M':

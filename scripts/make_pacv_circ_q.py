@@ -3,12 +3,18 @@ Makes a pacv file to be used in calibration
 with polarization expressed in circular basis
 
 extension of my_pacv
+- gets gain and dgain from quasar scan
+- gets linear(dphase) from pulsar scan
 
 - designed for circular feeds
 - corrects for ionospheric RM contribution in deriving calibration solution.
 - corrects for parallactic angle and position angle of the source
 
+use pulsar off to do ON-OFF of quasar.
+
 """
+from __future__ import print_function
+
 import os
 import json
 
@@ -16,6 +22,8 @@ import numpy as np
 import pandas as pd
 from io import StringIO
 
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as mgs
 
@@ -24,14 +32,6 @@ import astropy.units as au
 import astropy.coordinates as asc
 
 from astropy.io import fits
-
-try:
-    import psrchive
-except ImportError:
-    print (" psrchive-python is required for this script...")
-    print (" Please ensure it is installed")
-    import sys
-    sys.exit (0)
 
 ################################
 #RAD,DECD         = dict(),dict()
@@ -46,70 +46,26 @@ datxt = r"""
 3C48  24.4220417 33.1597417
 R3    29.50312583 65.71675422
 0217+738 34.882245 73.9229
+0139+5814 24.832250 58.242172
 """
-dadf  = pd.read_csv (StringIO(datxt), names=['source','radeg','decdeg'], sep='\s+').set_index('source')
+dadf  = pd.read_csv (StringIO(datxt), names=['source','radeg','decdeg'], sep='\\s+').set_index('source')
+#RAD,DECD         = dict(),dict()
+#for line in datxt.split():
+#    ll = line.strip().split(' ')
+#    RAD  [ ll[0] ] = float ( ll[1] )
+#    DECD [ ll[0] ] = float ( ll[2] )
+
 
 C                = 299792458.0 # m/s
 
-def read_pkg ( ar_file ):
-    """
-    returns dict 
-    taken from `make_pkg`
-    """
-    ff  = psrchive.Archive_load ( ar_file )
-    ff.convert_state ('Stokes')
-    ff.remove_baseline ()
-    ff.dedisperse ()
-    ###
-    basis = ff.get_basis()
-    nbin  = ff.get_nbin()
-    nchan = ff.get_nchan()
-    dur   = ff.get_first_Integration().get_duration()
-    fcen  = ff.get_centre_frequency ()
-    fbw   = ff.get_bandwidth ()
-    freqs = fcen + np.linspace (-0.5 * fbw, 0.5 * fbw, nchan, endpoint=True)
-    fchan = fbw / nchan
-    ## center frequency is already centered
-    # freqs += fchan
-    tsamp = dur / nbin
-    ###
-    data  = ff.get_data ()
-    #### making data and wts compatible
-    ww = np.array (ff.get_weights ().squeeze(), dtype=bool)
-    wts   = np.ones (data.shape, dtype=bool)
-    wts[:,:,ww,:] = False
-    mata  = np.ma.array (data, mask=wts, fill_value=np.nan)
-    ###
-    start_time   = ff.start_time ().in_days ()
-    end_time     = ff.end_time ().in_days ()
-    mid_time     = 0.5 * ( start_time + end_time )
-    ###
-    src          = ff.get_source ()
-    ###
-    srccoord     = ff.get_coordinates()
-    srcra        = srccoord.ra().getDegrees()
-    srcdec       = srccoord.dec().getDegrees()
-    ##########################################
-    pkg  = dict(
-       data=data, wts=wts, freqs=freqs,
-       bandwidth=fbw, center_freq=fcen, nchan=nchan, nbin=nbin,
-       mjd=start_time, src=src, duration=dur,
-       basis=basis,
-       ra  = srcra, dec=srcdec
-    )
-    return pkg
 
 def get_args ():
     import argparse
-    agp = argparse.ArgumentParser ("make_pacv_circ", description="Makes a pacv calibration solution in circular basis", epilog="GMRT-FRB polarization pipeline")
+    agp = argparse.ArgumentParser ("make_pacv_circ", description="Makes a pacv calibration solution in circular basis using quasar and pulsar folded archive.", epilog="GMRT-FRB polarization pipeline")
     add = agp.add_argument
-    add ('ar_file', help="calibrator archive file")
-    add ('-z','--zap', help='Zap the channels (comma-separated, start:stop)', dest='zap', default='')
-    add ('--on', help='ON region in bins (comma-separated, start:stop)', dest='on_region',)
-    add ('--off', help='OFF region in bins (comma-separated, start:stop)', dest='off_region',)
+    add ('pkg', help='Output of :prepare_qpacv:')
     add ('-O', '--outdir', help='Output directory', default="./", dest='odir')
     add ('-v','--verbose', action='store_true', dest='v')
-    add ('-n','--noise-diode', help='Noise diode', action='store_true', dest='noise_diode')
     add ('--delays_grid', help='Delays grid (min:max:steps)', dest='delays_grid', default="-100:100:8192")
     add ('--ionospheric_rm', help='Ionospheric RM compute using spinifex', dest='ionosrm', default=0.0, type=float)
     return agp.parse_args ()
@@ -191,8 +147,8 @@ class BasePacvInfo(object):
         ra_hms        = self.sc.ra.hms
         dec_dms       = self.sc.dec.dms
         self.src_name = src_name
-        self.ra_str   = f"{int(ra_hms[0]):02d}:{np.abs(int(ra_hms[1])):02d}:{np.abs(ra_hms[2]):07.4f}"
-        self.dec_str  = f"{int(dec_dms[0]):02d}:{np.abs(int(dec_dms[1])):02d}:{np.abs(dec_dms[2]):07.4f}"
+        self.ra_str   = "{h:02d}:{m:02d}:{s:07.4f}".format(h=int(ra_hms[0]), m=int(ra_hms[1]), s=np.abs(ra_hms[2]))
+        self.dec_str  = "{d:02d}:{m:02d}:{s:07.4f}".format(d=int(dec_dms[0]),m=int(dec_dms[1]),s=np.abs(dec_dms[2]))
 
     def get_parallactic_angle (self, tobs, noise_diode=False):
         """ compute parallactic angle 
@@ -251,6 +207,8 @@ class BasePacvInfo(object):
             return 0.0
         elif self.src_name == "3C138":
             return -2.1 + ionosrm
+        elif self.src_name == "0139+5814":
+            return -94.13  + ionosrm
         else:
             raise RuntimeError ("Source not identified src=",self.src_name)
 
@@ -293,9 +251,9 @@ class BasePacvInfo(object):
             - if CALIBRATION
         """
         if feed not in ['CIRC','LIN']:
-            raise RuntimeError (f"Feed={feed} not understood")
+            raise RuntimeError ("Feed={feed} not understood".format(feed=feed))
         if hand not in [+1, -1]:
-            raise RuntimeError (f"Hand={hand} not understood")
+            raise RuntimeError ("Hand={hand} not understood".format(hand=hand))
         # XXX need to check
         p_hdr = fits.Header()
         p_hdr["HDRVER"] = (
@@ -531,68 +489,57 @@ if __name__ == "__main__":
     try:
         delays_grid = np.linspace ( float ( __dgrid[0] ), float ( __dgrid[1] ), int ( __dgrid[2] ) )
     except: 
-        raise RuntimeError (f"Delays grid not understood, input={args.delays_grid}")
+        raise RuntimeError ("Delays grid not understood, input={dg}".format(dg=args.delays_grid))
 
     ###################################################
-    ### prepare files/filenames
+    ### read output of prepare_qpacv
+    def make_ma ( arr ):
+        """ make maskedarray out of normal array """
+        mask = np.isnan(arr)
+        return np.ma.MaskedArray ( arr, mask=mask )
+    strer         = lambda s : str(s.astype('U'))
+    with np.load ( args.pkg ) as f:
+        pfile     = strer (f['pfile'])
+        ofile     = strer (f['ofile'])
+        outfile   = strer (f['outfile'])
+        base      = strer (f['base'])
+        psr_name  = strer (f['psr_name'])
+        ###
+        freqs_mhz = f['freqs_mhz']
+        freqs_ghz = freqs_mhz * 1E-3
+        wav2      = f['wav2']
+        bandwidth = f['bandwidth'].item()
+        fcen      = f['center_freq'].item()
+        ###
+        mjd       = f['mjd']
+        psr_ra    = f['psr_ra']  # deg
+        psr_dec   = f['psr_dec'] # deg
+        ###
+        psr_oo    = make_ma ( f['psr'] )
+        psr_pp    = make_ma ( f['psr_pp'] )
+        qsr_oo    = make_ma ( f['qsr'] )
+        ###
+        psr_onmask= f['psr_onmask']
+        psr_ofmask= f['psr_ofmask']
+        ###
+        aaerr     = make_ma ( f['err_aa'] )
+        bberr     = make_ma ( f['err_bb'] )
+        crerr     = make_ma ( f['err_cr'] )
+        cierr     = make_ma ( f['err_ci'] )
+        ###
     ###################################################
-    AR_FILE     = args.ar_file
-    base,_      = os.path.splitext ( os.path.basename ( AR_FILE ) )
-    pfile       = os.path.join ( args.odir, base + ".pcal.png" )
-    zfile       = os.path.join ( args.odir, base + ".pcal.npz" )
-    ofile       = base + ".pcal.pacv"
-    outfile     = os.path.join ( args.odir, ofile  )
-    RET         = dict()
-    ###################################################
-    ### read calibrator file
-    ###################################################
-    ## read
-    pkg         = read_pkg ( AR_FILE )
-    freqs_mhz   = pkg['freqs']
-    mata        = np.ma.MaskedArray ( pkg['data'], mask=pkg['wts'] )[0]
-    mjd         = pkg['mjd']
-    source      = pkg['src']
-    source_ra   = pkg['ra']
-    source_dec  = pkg['dec']
     nchan       = freqs_mhz.shape[0]
     fbw         = freqs_mhz[1] - freqs_mhz[0]
-    bandwidth   = pkg['bandwidth']
-    fcen        = pkg['center_freq']
-    #### freqs
-    freqs_ghz   = freqs_mhz * 1E-3 
-    wav2        = np.power ( 299.792458 / freqs_mhz, 2.0 )
-    ### (Stokes, freq, bin)
-    ### make masks
-    if args.on_region is None:
-        pp      = mata[0].mean(0)
-        ppmax   = pp.max()
-        percent = 0.60
-        onmask  = pp >= percent*ppmax
-        ofmask  = np.logical_not ( onmask )
-    else:
-        onmask      = mask_maker ( args.on_region, mata.shape[2] )
-        ofmask      = mask_maker ( args.off_region, mata.shape[2] )
-    fqmask      = mask_maker ( args.zap, mata.shape[1] )
-    #### ON - OFF
-    oo          = mata[...,onmask].mean(-1) - mata[...,ofmask].mean(-1)
-    ooerr       = mata[...,ofmask].std(-1)
-    fqmask     |= oo.mask[0]
-    fqmask     |= oo.mask[1]
-    fqmask     |= oo.mask[2]
-    fqmask     |= oo.mask[3]
     #####################################
-    ## oo == ( Stokes, freq )
+    ## oo == ( coherence, freq )
     ## if oo[0,ifreq] <= ooerr[0] : flag it
-    lz          = oo[0] <= 0 
+    lz          = psr_oo[0] <= 0 
     if np.any (lz):
-        print (f" ON-OFF Stokes-I is below 0, this should not be, flagging it.")
-        fqmask |= lz
-    
-    ## apply the mask to oo
-    oo.mask[...,:] |= fqmask
-    ooerr.mask[...,:] |= fqmask
-    ## compute Stokes-I frequency averaged time series
-    pp       = mata[0].mean(0)
+        ## apply the mask to oo
+        psr_oo.mask[...,:] |= lz
+        qsr_oo.mask[...,:] |= lz
+    ###### fqmask
+    fqmask    = psr_oo.mask[0] | psr_oo.mask[1] | psr_oo.mask[2] | psr_oo.mask[3]
     ###################################################
     ### prepare pacv file
     ###################################################
@@ -605,43 +552,41 @@ if __name__ == "__main__":
     pinfo.fill_freq_info ( nchan, bandwidth, fcen, freqs_mhz )
     ##
     #pinfo.fill_source_info ( source, RAD[source], DECD[source] )
-    #pinfo.fill_source_info ( source, dadf.radeg.loc[source], dadf.decdeg.loc[source] )
-    pinfo.fill_source_info ( source, source_ra, source_dec )
+    pinfo.fill_source_info ( psr_name, dadf.radeg.loc[psr_name], dadf.decdeg.loc[psr_name] )
     pinfo.fill_beam_info ( 0. )
     #### parallactic angle
     #### position angle
-    pal_angle = pinfo.get_parallactic_angle ( tobs, noise_diode = args.noise_diode )
-    pos_angle, pal_freq   = pinfo.get_position_angle ( noise_diode = args.noise_diode )
+    pal_angle = pinfo.get_parallactic_angle ( tobs, noise_diode = False )
+    ## this true here because we do not know the absolute PA of pulsars
+    pos_angle, pal_freq   = pinfo.get_position_angle ( noise_diode = True )
     #### source RM
-    srcrm       = pinfo.get_rotation_measure ( args.ionosrm, noise_diode = args.noise_diode ) 
+    srcrm       = pinfo.get_rotation_measure ( args.ionosrm, noise_diode = False ) 
     #### correct for both
     angle_corr  = pal_angle + pos_angle
     rm_corr     = srcrm
     #### logging
-    print (f" Parallactic angle = {np.rad2deg(pal_angle):.3f}")
-    print (f" Position angle    = {np.rad2deg(pos_angle):.3f}")
-    print (f" Correction angle  = {np.rad2deg(angle_corr):.3f}")
-    print (f" Correcting RM     = {srcrm:.3f}")
+    print (" Parallactic angle = {r:.3f}".format(r=np.rad2deg(pal_angle)))
+    print (" Position angle    = {r:.3f}".format(r=np.rad2deg(pos_angle)))
+    print (" Correction angle  = {r:.3f}".format(r=np.rad2deg(angle_corr)))
+    print (" Correcting RM     = {srcrm:.3f}".format(srcrm=srcrm))
     pa_corr     = angle_corr + (rm_corr * wav2)
     ##################################################
     ### math
     ###################################################
-    ii,qq,uu,vv = oo
-    data_pa     = 0.5 * np.arctan2 ( uu, qq )
+    qsr_aa, qsr_bb, _, _ = qsr_oo
+    _, _, psr_cr, psr_ci = psr_oo
+    ####
+    data_pa     = 0.5 * np.arctan2 ( psr_ci, psr_cr )
     ######### PA correction
     data_pa     = np.arctan ( np.tan ( data_pa - pa_corr ) )
-    ######### PA correction
-    aa          = 0.5 * ( ii + vv )
-    bb          = 0.5 * ( ii - vv )
     #### error propagation
-    ierr,qerr,uerr,verr = ooerr
-    _aberr      = np.sqrt ( ierr**2 + verr**2 )
-    dab         = (_aberr/aa) + (_aberr/bb)
+    _aberr      = np.sqrt ( aaerr**2 + bberr**2 )
+    dab         = (_aberr/qsr_aa) + (_aberr/qsr_bb)
     ### gain dgain
-    gain        = np.sqrt ( 2.0 * np.sqrt ( aa * bb ) )
+    gain        = np.sqrt ( 2.0 * np.sqrt ( qsr_aa * qsr_bb ) )
     gainerr     = 0.25 * gain * dab
 
-    dgain       = 0.25 * np.log ( aa / bb )
+    dgain       = 0.25 * np.log ( qsr_aa / qsr_bb )
     dgainerr    = 0.25 * dab 
     ##### delay_grid
     dmags       = np.zeros_like ( delays_grid )
@@ -657,35 +602,29 @@ if __name__ == "__main__":
     ### dphase error is standard deviation of error_pa
     dphaseerr   = np.zeros_like ( dphase ) + np.std ( error_pa )
     ##################################################
-    st        = f" estimated cable delay = {delay_ns:.3f} ns | bias_rad = {bias_rad:.3f} rad"
-    RET['gain']  = gain
-    RET['dgain'] = dgain
-    RET['delay'] = delay_ns
-    RET['bias_rad'] = bias_rad
-    RET['res']   = error_pa
-    RET['model'] = model_pa
-    RET['dphase'] = dphase
-    np.savez ( zfile, **RET )
+    st        = " estimated cable delay = {delay_ns:.3f} ns | bias_rad = {bias_rad:.3f} rad".format(delay_ns=delay_ns,bias_rad=bias_rad)
     print ( st )
     ### make diagnostic plot
     ###################################################
     fig       = plt.figure ('pacv_circ')
-    gs        = mgs.GridSpec ( 3, 2, figure=fig )
+    gs        = mgs.GridSpec ( 4, 2, figure=fig )
     axpp      = fig.add_subplot ( gs[0,0] )
     axdd      = fig.add_subplot ( gs[0,1] )
     axpa      = fig.add_subplot ( gs[1,:] )
     axep      = fig.add_subplot ( gs[2,:], sharex=axpa )
+    axgg      = fig.add_subplot ( gs[3,:], sharex=axpa )
+    axdg      = axgg.twinx()
     ################
     axdd.plot ( delays_grid, dmags, c='b', marker='.' )
     axdd.axvline ( delay_ns, ls=':', c='k' )
     axdd.set_xlabel ('Delays / ns')
     axdd.set_ylabel ('Magnitude')
 
-    __bins    = np.arange ( mata.shape[2] )
-    axpp.plot ( __bins, pp, c='k' )
+    __bins    = np.arange ( psr_pp.size )
+    axpp.plot ( __bins, psr_pp, c='k' )
     _ylow, _yhigh = axpp.get_ylim ()
-    axpp.vlines ( np.where(onmask)[0], color='g', alpha=0.20, ymin=_ylow, ymax=_yhigh  )
-    axpp.vlines ( np.where(ofmask)[0], color='r', alpha=0.20, ymin=_ylow, ymax=_yhigh  )
+    axpp.vlines ( np.where(psr_onmask)[0], color='g', alpha=0.20, ymin=_ylow, ymax=_yhigh  )
+    axpp.vlines ( np.where(psr_ofmask)[0], color='r', alpha=0.20, ymin=_ylow, ymax=_yhigh  )
     axpp.set_xlabel ('Bin')
     axpp.set_ylabel ('I')
 
@@ -693,13 +632,18 @@ if __name__ == "__main__":
     axpa.plot ( freqs_mhz, model_pa, c='b')
 
     axep.scatter ( freqs_mhz, error_pa, c='k', marker='.' )
-    axep.set_xlabel ('Freq / MHz')
+    axgg.set_xlabel ('Freq / MHz')
     axep.set_ylabel ('Error / rad')
     axpa.set_ylabel ('PHI / rad')
     _ylow, _yhigh = axep.get_ylim ()
     __yy  = max ( abs ( _ylow ), abs ( _yhigh ) )
     axep.set_ylim ( -__yy, __yy )
     axep.axhline ( 0., ls=':', c='green' )
+
+    axgg.scatter ( freqs_mhz, gain, c='b', marker='.' )
+    axdg.scatter ( freqs_mhz, dgain, c='r', marker='.' )
+    axgg.set_ylabel ('Gain')
+    axdg.set_ylabel ('DGain')
 
     fig.suptitle ( base+'\n'+st )
 
@@ -732,10 +676,10 @@ if __name__ == "__main__":
     calsol_header   = pinfo.fill_solution_header ( delay_ns, bias_rad )
     ## XXX note that there is no ``hin'' operation happening here
     calsol_columns  = [
-        fits.Column(name="DAT_FREQ", format=f"{nchan:d}D", unit="MHz", array=dat_freq),
-        fits.Column(name="DAT_WTS",  format=f"{nchan:d}E", array=dat_wts),
-        fits.Column(name="DATA",     format=f"{nchan*npar:d}E", array=data),
-        fits.Column(name="DATAERR",  format=f"{nchan*npar:d}E", array=dataerr),
+        fits.Column(name="DAT_FREQ", format="{nchan:d}D".format(nchan=nchan), unit="MHz", array=dat_freq),
+        fits.Column(name="DAT_WTS",  format="{nchan:d}E".format(nchan=nchan), array=dat_wts),
+        fits.Column(name="DATA",     format="{n:d}E".format(n=nchan*npar), array=data),
+        fits.Column(name="DATAERR",  format="{n:d}E".format(n=nchan*npar), array=dataerr),
     ]
     calsol_hdu      = fits.BinTableHDU(
         fits.FITS_rec.from_columns(calsol_columns), name="feedpar", header=calsol_header
